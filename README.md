@@ -58,7 +58,7 @@ Polaris makes them requirements:
 | **AI-native** | `AGENTS.md` is the contract an agent must follow. The scaffolder, the API layer and `composer check` make the correct shape the easy shape. |
 | **Secure by default** | CSRF on every state-changing request, prepared statements everywhere, single-use hashed magic links, upload re-encoding, CSP and security headers. |
 | **Updatable** | `kernel/` is read-only and replaced on upgrade. Your `app/` is never merged. |
-| **Tested** | 149 kernel tests. A bug fix ships with the test that failed first. |
+| **Tested** | 159 kernel tests. A bug fix ships with the test that failed first. |
 | **Self-contained** | 19 runtime packages, ~4.5 MB of vendor, file cache instead of Redis, MySQL only. |
 | **Portable** | Zip + installer, or incremental FTP deploy. Works where SSH does not exist. |
 
@@ -216,10 +216,11 @@ composer test     # PHPUnit
 composer check    # PHP syntax lint + PHPUnit
 ```
 
-143 tests run with no services at all. 6 need MySQL (the migration runner and
-the rate limiter) and skip with a message when it is absent, so a fresh clone is
-green out of the box. CI sets `POLARIS_REQUIRE_INTEGRATION=1`, which turns that
-skip into a failure: a database that is down must not look like a passing suite.
+151 tests run with no services at all. 8 need MySQL (the migration runner, the
+rate limiter and the magic-link race) and skip with a message when it is absent,
+so a fresh clone is green out of the box. CI sets
+`POLARIS_REQUIRE_INTEGRATION=1`, which turns that skip into a failure: a
+database that is down must not look like a passing suite.
 
 ```bash
 mysql -uroot -e "CREATE DATABASE polaris_test"

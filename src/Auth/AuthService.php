@@ -7,9 +7,10 @@ namespace Polaris\Auth;
 use Polaris\Repositories\MagicLinkRepository;
 use Polaris\Mail\MailerInterface;
 use Polaris\Services\MagicLinkService;
+use Polaris\Support\Database;
+use Polaris\Support\RateLimiter;
 use Polaris\Support\Session;
 use Polaris\Support\Translator;
-use Polaris\Support\Database;
 use RuntimeException;
 
 /**
@@ -45,6 +46,7 @@ class AuthService
         private SubscriberSync $newsletter,
         private ProfileProvisioner $provisioner,
         private Database $db,
+        private RateLimiter $limiter,
         private array $settings,
     ) {
     }
@@ -102,6 +104,20 @@ class AuthService
             return null;
         }
 
+        // Rate-limit per account and per IP. The limit is intentionally tight:
+        // a magic link is a delivered email, and an attacker should not be able
+        // to spam a victim's inbox or burn the mail quota.
+        $bucket = 'magic-link:' . $user['id'];
+        $ipBucket = 'magic-link-ip:' . ($ip ?? 'unknown');
+
+        if (!$this->limiter->attempt($bucket, 3, 300)) {
+            return null;
+        }
+
+        if (!$this->limiter->attempt($ipBucket, 5, 60)) {
+            return null;
+        }
+
         $this->maybePromoteAdmin($user);
         $this->sendMagicLink($user, $ip, $userAgent);
 
@@ -130,13 +146,14 @@ class AuthService
             return null;
         }
 
-        $link = $this->magicLinks->findValidByHash(hash('sha256', $token));
+        // The repository UPDATEs with a WHERE that only matches an unused,
+        // unexpired row. MySQL serializes the write, so the same token cannot
+        // be consumed twice, even between requests.
+        $link = $this->magicLinks->consume(hash('sha256', $token));
 
         if ($link === null) {
             return null;
         }
-
-        $this->magicLinks->markUsed((int) $link['id']);
 
         $user = $this->users->findById((int) $link['user_id']);
 

@@ -48,7 +48,8 @@ $api = new Registry([
 RestRouter::mount($app, $api, '/api/v1', [ApiKeyMiddleware::class]);
 $app->post('/api/mcp', \Polaris\Api\McpController::class . ':handle')
     ->add(new ApiKeyMiddleware($settings, $limiter, 'mcp'));
-$app->get('/api/v1/openapi.json', DocsController::class . ':openApi');
+$app->get('/api/v1/openapi.json', DocsController::class . ':openApi')
+    ->add(ApiKeyMiddleware::class); // the document lists every operation
 ```
 
 Add an operation to the group and you have: a REST route, an MCP tool, and an

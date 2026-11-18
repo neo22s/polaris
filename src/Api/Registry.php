@@ -127,10 +127,17 @@ final class Registry
      * time somebody adds a field, and nobody notices until an integrator does.
      *
      * @param string $serverUrl Absolute URL of the site.
+     * @param bool $protectReads Whether GET operations are key-protected too.
+     *        True by default: `RestRouter::mount` applies the middleware to the
+     *        whole group, so documenting a public GET would be a lie.
      * @return array<string,mixed>
      */
-    public function openApi(string $serverUrl, string $title, string $version = '1.0.0'): array
-    {
+    public function openApi(
+        string $serverUrl,
+        string $title,
+        string $version = '1.0.0',
+        bool $protectReads = true,
+    ): array {
         $paths = [];
         $schemas = [];
 
@@ -203,7 +210,7 @@ final class Registry
                     '401' => ['description' => 'Missing or invalid API key'],
                 ];
 
-                if ($operation->mutating) {
+                if ($operation->mutating || $protectReads) {
                     $operationSpec['security'] = [['apiKey' => []]];
                 }
 

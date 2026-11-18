@@ -137,7 +137,7 @@ final class ApiTest extends TestCase
         $this->assertTrue($getParameters[0]['required']);
     }
 
-    public function testTheOpenApiDocumentRequiresAKeyForMutatingOperationsOnly(): void
+    public function testTheOpenApiDocumentRequiresAKeyForEveryOperationByDefault(): void
     {
         $registry = new Registry([
             new ApiGroup('users', [
@@ -156,8 +156,14 @@ final class ApiTest extends TestCase
 
         $paths = $registry->openApi('https://example.com', 'Test')['paths'];
 
-        $this->assertArrayNotHasKey('security', $paths['/api/v1/users']['get']);
+        // The standard mount protects the whole group, so a GET is not public.
+        $this->assertSame([['apiKey' => []]], $paths['/api/v1/users']['get']['security']);
         $this->assertSame([['apiKey' => []]], $paths['/api/v1/users']['post']['security']);
+
+        // A site that mounts public reads documents them as public.
+        $public = $registry->openApi('https://example.com', 'Test', '1.0.0', false)['paths'];
+        $this->assertArrayNotHasKey('security', $public['/api/v1/users']['get']);
+        $this->assertSame([['apiKey' => []]], $public['/api/v1/users']['post']['security']);
     }
 
     public function testTheRestRouteCallsTheSameHandlerTheToolCalls(): void
@@ -254,6 +260,26 @@ final class ApiTest extends TestCase
 
         $this->assertSame(['result' => 42], $restBody);
         $this->assertSame($restBody, $toolBody, 'Both surfaces must return the same payload.');
+    }
+
+    public function testTheMcpControllerKeepsTheResponseItWasGiven(): void
+    {
+        $mcp = new \Polaris\Api\McpController($this->registry());
+
+        $request = (new ServerRequestFactory())
+            ->createServerRequest('POST', '/api/mcp')
+            ->withBody((new \Slim\Psr7\Factory\StreamFactory())->createStream((string) json_encode([
+                'jsonrpc' => '2.0',
+                'id' => 1,
+                'method' => 'ping',
+            ])));
+
+        // A middleware may decorate the response before the controller runs.
+        // The controller has to reuse it instead of creating a bare Response.
+        $response = $mcp->handle($request, (new \Slim\Psr7\Response())->withHeader('X-Trace', 'abc'));
+
+        $this->assertSame('abc', $response->getHeaderLine('X-Trace'));
+        $this->assertSame('application/json', $response->getHeaderLine('Content-Type'));
     }
 
     public function testTheDocsPageListsEveryOperation(): void

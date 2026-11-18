@@ -14,18 +14,12 @@ use Psr\Http\Server\RequestHandlerInterface;
  */
 final class SecurityHeadersMiddleware implements MiddlewareInterface
 {
-    private const CSP = "default-src 'self'; "
-        . "base-uri 'self'; "
-        . "form-action 'self'; "
-        . "object-src 'none'; "
-        . "frame-ancestors 'self'; "
-        . "img-src 'self' data: blob:; "
-        . "media-src 'self' https://vilaestudio.com; "
-        . "frame-src https://www.youtube.com https://www.youtube-nocookie.com; "
-        . "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net https://maxcdn.bootstrapcdn.com; "
-        . "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://maxcdn.bootstrapcdn.com; "
-        . "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://www.googletagmanager.com; "
-        . "connect-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com";
+    /** @param array<int,string> $trustedProxies */
+    public function __construct(
+        private array $csp = [],
+        private array $trustedProxies = [],
+    ) {
+    }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
@@ -36,7 +30,7 @@ final class SecurityHeadersMiddleware implements MiddlewareInterface
             ->withHeader('X-Frame-Options', 'SAMEORIGIN')
             ->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
             ->withHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()')
-            ->withHeader('Content-Security-Policy', self::CSP);
+            ->withHeader('Content-Security-Policy', $this->csp());
 
         if ($this->isSecure($request)) {
             $response = $response->withHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
@@ -45,11 +39,46 @@ final class SecurityHeadersMiddleware implements MiddlewareInterface
         return $response;
     }
 
+    /**
+     * The default CSP is strict: Polaris itself ships no inline scripts, no
+     * eval, and no external resources. A site that needs CDNs or inline JS
+     * can configure them; the default must not be permissive.
+     */
+    private function csp(): string
+    {
+        if ($this->csp !== []) {
+            return implode('; ', $this->csp);
+        }
+
+        return "default-src 'self'; "
+            . "base-uri 'self'; "
+            . "form-action 'self'; "
+            . "object-src 'none'; "
+            . "frame-ancestors 'self'; "
+            . "img-src 'self' data: blob:; "
+            . "font-src 'self'; "
+            // Inline styles are allowed because templates and the generated
+            // docs use style attributes; CSS cannot execute JavaScript. Scripts
+            // stay strict, which is the directive that matters.
+            . "style-src 'self' 'unsafe-inline'; "
+            . "script-src 'self'; "
+            . "connect-src 'self'";
+    }
+
     private function isSecure(ServerRequestInterface $request): bool
     {
         $server = $request->getServerParams();
 
-        return ($server['HTTPS'] ?? '') === 'on'
-            || ($request->getHeaderLine('X-Forwarded-Proto') === 'https');
+        if (($server['HTTPS'] ?? '') === 'on') {
+            return true;
+        }
+
+        $remoteAddr = $server['REMOTE_ADDR'] ?? 'unknown';
+
+        if (!in_array($remoteAddr, $this->trustedProxies, true)) {
+            return false;
+        }
+
+        return $request->getHeaderLine('X-Forwarded-Proto') === 'https';
     }
 }

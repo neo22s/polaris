@@ -71,8 +71,12 @@ return static function (App $app, ContainerInterface $container): void {
         ApiKeyMiddleware::class,
     ]);
 
-    $app->get('/api/v1/openapi.json', Polaris\Api\DocsController::class . ':openApi');
-    $app->get('/api/v1/docs', Polaris\Api\DocsController::class . ':html');
+    // The docs list every operation and its arguments: reconnaissance, so they
+    // sit behind the same key as the endpoints they describe.
+    $app->get('/api/v1/openapi.json', Polaris\Api\DocsController::class . ':openApi')
+        ->add(ApiKeyMiddleware::class);
+    $app->get('/api/v1/docs', Polaris\Api\DocsController::class . ':html')
+        ->add(ApiKeyMiddleware::class);
 
     $app->post('/api/mcp', Polaris\Api\McpController::class . ':handle')
         ->add('polaris.mcp.key');

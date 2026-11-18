@@ -301,34 +301,28 @@ final class FtpUploader
 
     private function fetch(string $url): string
     {
-        if (function_exists('curl_init')) {
-            $handle = curl_init($url);
-            curl_setopt_array($handle, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_MAXREDIRS => 3,
-                CURLOPT_TIMEOUT => 120,
-                CURLOPT_SSL_VERIFYPEER => true,
-                CURLOPT_USERAGENT => 'Polaris-Deploy',
-            ]);
-            $body = curl_exec($handle);
-            $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
-            $error = (string) curl_error($handle);
-            curl_close($handle);
-
-            if ($body === false || $status !== 200) {
-                throw new RuntimeException('HTTP ' . $status . ' ' . $error . ' ' . (is_string($body) ? substr($body, 0, 300) : ''));
-            }
-
-            return (string) $body;
+        if (!function_exists('curl_init')) {
+            throw new RuntimeException('cURL is required to call the migration runner securely.');
         }
 
-        $body = @file_get_contents($url);
+        $handle = curl_init($url);
+        curl_setopt_array($handle, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 3,
+            CURLOPT_TIMEOUT => 120,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_USERAGENT => 'Polaris-Deploy',
+        ]);
+        $body = curl_exec($handle);
+        $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
+        $error = (string) curl_error($handle);
+        curl_close($handle);
 
-        if ($body === false) {
-            throw new RuntimeException('Could not call the migration runner over HTTPS.');
+        if ($body === false || $status !== 200) {
+            throw new RuntimeException('HTTP ' . $status . ' ' . $error . ' ' . (is_string($body) ? substr($body, 0, 300) : ''));
         }
 
-        return $body;
+        return (string) $body;
     }
 }

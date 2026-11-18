@@ -36,28 +36,48 @@ final class ApiKeyMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        $config = $this->mode === 'mcp' ? ($this->settings['mcp'] ?? []) : ($this->settings['api'] ?? []);
+        $config = $this->config();
         $expected = (string) ($config['api_key'] ?? '');
 
         if (($config['enabled'] ?? true) === false || strlen($expected) < 32) {
-            return $this->error(-32000, 'API is not enabled', 503);
+            return $this->error(-32000, $this->label() . ' is not enabled', 503);
         }
 
-        $header = $this->mode === 'mcp' ? 'X-MCP-API-KEY' : 'X-API-KEY';
-        $provided = (string) $request->getHeaderLine($header);
+        $provided = (string) $request->getHeaderLine($this->header());
 
         if ($provided === '' || !hash_equals($expected, $provided)) {
-            return $this->error(-32001, 'Invalid API key', 401);
+            return $this->error(-32001, 'Invalid ' . $this->label() . ' key', 401);
         }
 
+        $ip = (string) ($request->getServerParams()['REMOTE_ADDR'] ?? 'unknown');
         [$max, $window] = (array) ($config['rate_limit'] ?? [60, 60]);
-        $key = $this->mode . ':' . hash('sha256', $expected);
+        $key = $this->mode . ':' . hash('sha256', $expected) . ':' . $ip;
 
         if (!$this->limiter->attempt($key, (int) $max, (int) $window)) {
             return $this->error(-32002, 'Too many requests', 429);
         }
 
+        if ($this->mode === 'mcp' && strtoupper($request->getMethod()) !== 'POST') {
+            return $this->error(-32003, 'Method not allowed', 405);
+        }
+
         return $handler->handle($request);
+    }
+
+    /** @return array<string,mixed> */
+    private function config(): array
+    {
+        return $this->mode === 'mcp' ? ($this->settings['mcp'] ?? []) : ($this->settings['api'] ?? []);
+    }
+
+    private function header(): string
+    {
+        return $this->mode === 'mcp' ? 'X-MCP-API-KEY' : 'X-API-KEY';
+    }
+
+    private function label(): string
+    {
+        return $this->mode === 'mcp' ? 'MCP API' : 'API';
     }
 
     private function error(int $code, string $message, int $status): ResponseInterface
@@ -77,8 +97,12 @@ final class ApiKeyMiddleware implements MiddlewareInterface
         $response = new Response($status);
         $response->getBody()->write($body !== false ? $body : '{}');
 
-        return $response
-            ->withHeader('Content-Type', 'application/json')
-            ->withHeader('WWW-Authenticate', 'ApiKey');
+        $response = $response->withHeader('Content-Type', 'application/json');
+
+        if ($this->mode !== 'mcp') {
+            $response = $response->withHeader('WWW-Authenticate', 'ApiKey');
+        }
+
+        return $response;
     }
 }

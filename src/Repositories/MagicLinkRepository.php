@@ -27,6 +27,47 @@ final class MagicLinkRepository
         ]);
     }
 
+    /**
+     * Consume a still-valid token and return the matching link row.
+     *
+     * The UPDATE is done with a WHERE that only matches an unused, unexpired
+     * row. MySQL reports how many rows changed, so two concurrent requests
+     * carrying the same token cannot both succeed: one wins the race, the
+     * other sees 0 affected rows and gets null.
+     */
+    public function consume(string $tokenHash): ?array
+    {
+        $now = date('Y-m-d H:i:s');
+
+        $link = $this->db->selectOne(
+            'SELECT * FROM magic_links
+             WHERE token_hash = :hash AND used_at IS NULL AND expires_at > :now
+             ORDER BY id DESC LIMIT 1',
+            ['hash' => $tokenHash, 'now' => $now],
+        );
+
+        if ($link === null) {
+            return null;
+        }
+
+        // Native prepares reject a repeated named placeholders, so the current
+        // time is bound twice: once for the write and once for the guard.
+        $affected = $this->db->execute(
+            'UPDATE magic_links
+             SET used_at = :now
+             WHERE id = :id AND used_at IS NULL AND expires_at > :now_again',
+            ['now' => $now, 'id' => (int) $link['id'], 'now_again' => $now],
+        );
+
+        return $affected > 0 ? $link : null;
+    }
+
+    /**
+     * The newest unused, unexpired link for a hash, without consuming it.
+     *
+     * Kept for callers that only need to inspect a token. Authentication goes
+     * through consume(), which is atomic.
+     */
     public function findValidByHash(string $tokenHash): ?array
     {
         return $this->db->selectOne(

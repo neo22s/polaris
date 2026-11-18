@@ -56,6 +56,15 @@ SecurityHeaders → ErrorPage → Session → TemplateData → BodyParsing → C
 | BodyParsing | Before CSRF, so a form token reaches `parsedBody` |
 | CSRF | Rejects state-changing requests without a valid token, unless the request authenticates with an API key |
 
+### Security defaults
+
+- The CSP is `'self'` only: no inline scripts, no `eval`, no third-party hosts.
+  A site adds directives under `settings.security.csp`, which replaces the list;
+  the baseline is written for a site that ships no frontend build step.
+- `X-Forwarded-Proto` is ignored unless `REMOTE_ADDR` is listed in
+  `TRUSTED_PROXIES`. On shared hosting with no proxy the list stays empty, so a
+  forged header cannot claim HTTPS.
+
 ## Layers
 
 | Layer | Responsibility | Must not |

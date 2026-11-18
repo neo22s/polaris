@@ -166,13 +166,18 @@ final class Database
      * Insert a row from an associative array and return its new id.
      * Column names become the placeholders (":name").
      *
+     * An empty row is a programming error, not a no-op: returning 0 would look
+     * like a valid id and hide the bug at the call site. On a table without an
+     * auto-increment column MySQL also reports 0, which is documented here so a
+     * caller can tell the two apart.
+     *
      * @param array<string,mixed> $data
-     * @throws \InvalidArgumentException When the table or a column name is not a plain identifier.
+     * @throws \InvalidArgumentException When the row is empty or the table/column name is not a plain identifier.
      */
     public function insert(string $table, array $data): int
     {
         if ($data === []) {
-            return 0;
+            throw new \InvalidArgumentException('Cannot insert an empty row.');
         }
 
         $this->assertIdentifier($table, 'table');

@@ -139,12 +139,34 @@ final class DeployTest extends TestCase
         DeployConfig::fromFile($this->work . '/.deploy.env');
     }
 
+    public function testDeployConfigParsesValuesWithEqualsAndComments(): void
+    {
+        $path = $this->work . '/.deploy.env';
+
+        file_put_contents(
+            $path,
+            "# deploy config\n" .
+            "FTP_HOST=ftp.example.com\n" .
+            "FTP_USER=u123\n" .
+            'FTP_PASS="secret=with=equals" # trailing comment' . "\n" .
+            "FTP_ROOT=public_html # inline comment\n" .
+            "FTP_SSL=false\n",
+        );
+
+        $config = DeployConfig::fromFile($path);
+
+        $this->assertSame('ftp.example.com', $config->required('FTP_HOST'));
+        $this->assertSame('secret=with=equals', $config->required('FTP_PASS'));
+        $this->assertSame('public_html', $config->get('FTP_ROOT'));
+        $this->assertFalse($config->bool('FTP_SSL', true));
+    }
+
     public function testTheMigrationRunnerRefusesRequestsWithoutTheToken(): void
     {
         $script = RemoteRunner::build(['0001_core.sql' => 'CREATE TABLE x (id int);'], 'a-secret-token');
 
         // The token check must come before anything else, including the unlink.
-        $this->assertStringContainsString('hash_equals(\'a-secret-token\'', $script);
+        $this->assertStringContainsString("hash_equals('a-secret-token'", $script);
         $this->assertStringContainsString("http_response_code(403)", $script);
 
         $tokenPosition = (int) strpos($script, 'hash_equals');
@@ -157,7 +179,17 @@ final class DeployTest extends TestCase
     {
         $script = RemoteRunner::build(['0001_core.sql' => "CREATE TABLE polite (id int);"], 'tok');
 
-        $this->assertStringContainsString('CREATE TABLE polite', $script);
+        // The SQL travels base64-encoded so a dollar sign, a quote or a PHP tag
+        // in a migration cannot be parsed as code.
+        $this->assertStringNotContainsString('CREATE TABLE polite', $script);
+        $this->assertStringContainsString('base64_decode(', $script);
+
+        preg_match("/base64_decode\(('(?:[^'\\\\]|\\\\.)*'), true\)/", $script, $match);
+        $this->assertNotEmpty($match, 'The runner must embed the migration payload.');
+
+        $decoded = json_decode((string) base64_decode(stripslashes(substr($match[1], 1, -1)), true), true);
+        $this->assertSame(['0001_core.sql' => 'CREATE TABLE polite (id int);'], $decoded);
+
         $this->assertStringContainsString('@unlink(__FILE__)', $script);
         // It must not assume the SQL files were uploaded.
         $this->assertStringNotContainsString("glob(", $script);

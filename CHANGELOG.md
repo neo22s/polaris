@@ -6,6 +6,40 @@ All notable changes to Polaris are recorded here. The format follows
 
 ## [Unreleased]
 
+### Security
+
+- **Magic links are consumed atomically.** The `UPDATE` only matches an unused,
+  unexpired token, so two concurrent requests cannot both sign in with the same
+  link.
+- **Magic-link requests are rate-limited** per account and per IP address, so a
+  known email cannot be used to flood an inbox or the mail quota.
+- **The default CSP is strict.** No `unsafe-inline`, no `unsafe-eval` and no
+  third-party hosts; a site opts into what it actually uses.
+- **`X-Forwarded-Proto` is only trusted from configured proxies.** Without
+  `TRUSTED_PROXIES`, the header cannot mark a request as HTTPS and forge HSTS or
+  a `Secure` cookie in plain HTTP.
+- **Deploy credentials survive `=`.** `.deploy.env` now parses quoted values and
+  inline comments correctly, so a password containing `=` is not truncated.
+- **The migration runner refuses the insecure fallback.** Calling it over HTTPS
+  requires cURL with peer verification; the unverified `file_get_contents` path
+  is gone.
+- **`Database::insert()` rejects an empty row** instead of returning `0`, which
+  looked like a valid id.
+- **The generated docs sit behind the API key.** The starter mounted
+  `/api/v1/docs` and `/api/v1/openapi.json` unprotected even though the document
+  lists every operation and argument.
+- **OpenAPI marks reads as key-protected too**, matching how `RestRouter::mount`
+  applies the middleware to the whole group.
+
+### Changed
+
+- **MCP responses reuse the PSR-7 response** the controller receives, so
+  middleware can decorate or inspect them.
+- **The session cookie is renewed through the response**, not `setcookie()`,
+  which keeps it inside the middleware stack.
+- **REST and MCP share one API-key middleware.** The MCP mode also enforces
+  `POST` and rate-limits per IP.
+
 ## [0.1.0] - 2026-11-18
 
 The kernel, extracted from a production application and running against it.
@@ -44,8 +78,8 @@ The kernel, extracted from a production application and running against it.
   admin controller, two templates and an idempotent migration.
 - **Site.** `starter/`: passwordless auth, admin health panel, first-run
   `/setup`, two languages, `AGENTS.md` and the AI prompt.
-- **Tests.** 146 kernel tests, including guards for kernel purity, version
-  consistency, mail MIME, API parity and deploy safety.
+- **Tests.** 159 kernel tests, including guards for kernel purity, version
+  consistency, mail MIME, API parity, deploy safety and the magic-link race.
 
 ### Notes
 

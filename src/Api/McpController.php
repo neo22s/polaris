@@ -35,39 +35,39 @@ final class McpController
         try {
             $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
         } catch (\JsonException) {
-            return $this->respond(null, ['code' => -32700, 'message' => 'Parse error'], null);
+            return $this->respond($response, null, ['code' => -32700, 'message' => 'Parse error'], null);
         }
 
         if (!is_array($decoded)) {
-            return $this->respond(null, ['code' => -32700, 'message' => 'Parse error'], null);
+            return $this->respond($response, null, ['code' => -32700, 'message' => 'Parse error'], null);
         }
 
         $id = array_key_exists('id', $decoded) ? $decoded['id'] : null;
 
         if (($decoded['jsonrpc'] ?? null) !== '2.0') {
-            return $this->respond($id, ['code' => -32600, 'message' => 'Invalid Request'], null);
+            return $this->respond($response, $id, ['code' => -32600, 'message' => 'Invalid Request'], null);
         }
 
         $method = $decoded['method'] ?? null;
 
         if (!is_string($method)) {
-            return $this->respond($id, ['code' => -32600, 'message' => 'method is required'], null);
+            return $this->respond($response, $id, ['code' => -32600, 'message' => 'method is required'], null);
         }
 
         if (!in_array($method, ['initialize', 'ping', 'tools/list', 'tools/call'], true)) {
-            return $this->respond($id, ['code' => -32601, 'message' => 'Method not found'], null);
+            return $this->respond($response, $id, ['code' => -32601, 'message' => 'Method not found'], null);
         }
 
         $params = isset($decoded['params']) && is_array($decoded['params']) ? $decoded['params'] : [];
 
         try {
-            return $this->respond($id, null, $this->dispatch($method, $params));
+            return $this->respond($response, $id, null, $this->dispatch($method, $params));
         } catch (\InvalidArgumentException $e) {
-            return $this->respond($id, ['code' => -32602, 'message' => $e->getMessage()], null);
+            return $this->respond($response, $id, ['code' => -32602, 'message' => $e->getMessage()], null);
         } catch (\Throwable $e) {
             error_log('[Polaris] MCP call failed: ' . $e->getMessage());
 
-            return $this->respond($id, ['code' => -32603, 'message' => 'Internal error'], null);
+            return $this->respond($response, $id, ['code' => -32603, 'message' => 'Internal error'], null);
         }
     }
 
@@ -114,7 +114,7 @@ final class McpController
         ];
     }
 
-    private function respond(mixed $id, ?array $error, mixed $result): ResponseInterface
+    private function respond(ResponseInterface $response, mixed $id, ?array $error, mixed $result): ResponseInterface
     {
         $payload = ['jsonrpc' => '2.0', 'id' => $id];
 
@@ -130,9 +130,9 @@ final class McpController
             $json = '{"jsonrpc":"2.0","id":null,"error":{"code":-32603,"message":"Internal error"}}';
         }
 
-        $response = new Response(200);
+        $response = $response->withHeader('Content-Type', 'application/json');
         $response->getBody()->write($json);
 
-        return $response->withHeader('Content-Type', 'application/json');
+        return $response;
     }
 }

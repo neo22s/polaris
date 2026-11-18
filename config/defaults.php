@@ -43,6 +43,10 @@ return [
         'session_lifetime' => Env::int('SESSION_LIFETIME', 31536000),
         'session_regenerate_minutes' => Env::int('SESSION_REGENERATE_MINUTES', 30),
 
+        // Reverse proxies that may set X-Forwarded-Proto. Empty means "do not
+        // trust the header", which is the safe default for shared hosting.
+        'trusted_proxies' => Env::list('TRUSTED_PROXIES'),
+
         // Database
         'db' => [
             'host' => (string) Env::get('DB_HOST', '127.0.0.1'),
@@ -90,6 +94,12 @@ return [
         'cache' => [
             'enabled' => Env::bool('CACHE_ENABLED', true),
             'path' => dirname(__DIR__) . '/var/cache/data',
+        ],
+
+        // Security headers. The default policy is strict; a site that needs
+        // CDNs or inline scripts replaces it here, directive by directive.
+        'security' => [
+            'csp' => [],
         ],
 
         // REST API for the operations declared in app/Api (optional, and off

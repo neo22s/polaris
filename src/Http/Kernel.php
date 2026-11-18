@@ -32,6 +32,7 @@ use Polaris\Support\Config;
 use Polaris\Support\Database;
 use Polaris\Support\Env;
 use Polaris\Support\Flash;
+use Polaris\Support\RateLimiter;
 use Polaris\Support\SystemStatus;
 use Polaris\Support\Translator;
 use Polaris\View\TemplateDataMiddleware;
@@ -113,9 +114,15 @@ final class Kernel
         $app = AppFactory::create();
         $app->addRoutingMiddleware();
 
-        // 6. Middleware. Slim runs last-added-first, so the effective order is
-        //    SecurityHeaders -> ErrorPage -> Session -> TemplateData ->
-        //    BodyParsing -> CSRF -> Routing -> controller.
+        // 6. Middleware. Slim runs the stack last-added-first, so the effective
+        //    order is the inverse of the add() calls below:
+        //
+        //      SecurityHeaders -> ErrorPage -> Session -> TemplateData ->
+        //      BodyParsing -> CSRF -> Routing -> controller.
+        //
+        //    Routing is added first (step 5), which makes it the innermost
+        //    layer: CSRF and body parsing have already run when the route is
+        //    matched, and the route callable is the last thing to execute.
         $app->add(CsrfMiddleware::class);
         $app->addBodyParsingMiddleware();
         $app->add(TemplateDataMiddleware::class);
@@ -211,6 +218,7 @@ final class Kernel
                 $c->get(SubscriberSync::class),
                 $c->get(ProfileProvisioner::class),
                 $c->get(Database::class),
+                $c->get(RateLimiter::class),
                 $settings,
             ),
 
@@ -219,11 +227,21 @@ final class Kernel
                 (int) $settings['session_lifetime'],
                 (int) $settings['session_regenerate_minutes'],
                 (string) $settings['paths']['sessions'],
+                (array) ($settings['trusted_proxies'] ?? []),
+            ),
+
+            RateLimiter::class => static fn (ContainerInterface $c): RateLimiter => new RateLimiter(
+                $c->get(Database::class),
             ),
 
             ErrorPageMiddleware::class => static fn (ContainerInterface $c): ErrorPageMiddleware => new ErrorPageMiddleware(
                 $c->get(View::class),
                 (bool) $settings['debug'],
+            ),
+
+            SecurityHeadersMiddleware::class => static fn (): SecurityHeadersMiddleware => new SecurityHeadersMiddleware(
+                (array) ($settings['security']['csp'] ?? []),
+                (array) ($settings['trusted_proxies'] ?? []),
             ),
 
             TemplateDataMiddleware::class => static fn (ContainerInterface $c): TemplateDataMiddleware => new TemplateDataMiddleware(

@@ -26,11 +26,16 @@ final class SessionMiddleware implements MiddlewareInterface
 
     private ?FileSessionHandler $store = null;
 
+    /** Whether the response must carry a renewed session cookie. */
+    private bool $renewCookie = false;
+
+    /** @param array<int,string> $trustedProxies */
     public function __construct(
         private string $name,
         private int $lifetime,
         private int $regenerateMinutes,
         private string $savePath,
+        private array $trustedProxies = [],
     ) {
     }
 
@@ -40,7 +45,16 @@ final class SessionMiddleware implements MiddlewareInterface
             $this->start();
         }
 
-        return $handler->handle($request);
+        $response = $handler->handle($request);
+
+        // The cookie is added to the PSR-7 response instead of being sent with
+        // setcookie(): a header written by PHP escapes the middleware stack and
+        // breaks under output buffering, tests and any response decorator.
+        if ($this->renewCookie) {
+            $response = $response->withAddedHeader('Set-Cookie', $this->cookieHeader());
+        }
+
+        return $response;
     }
 
     private function start(): void
@@ -53,8 +67,7 @@ final class SessionMiddleware implements MiddlewareInterface
         ini_set('session.gc_maxlifetime', (string) max(1, $this->lifetime));
         ini_set('session.lazy_write', '0');
 
-        $secure = ($_SERVER['HTTPS'] ?? '') === 'on'
-            || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+        $secure = $this->isSecure();
 
         session_set_cookie_params([
             'lifetime' => $this->lifetime,
@@ -79,23 +92,56 @@ final class SessionMiddleware implements MiddlewareInterface
         // other request the cookie would keep the expiry of the day the person
         // originally signed in, which is what makes sessions die "randomly".
         if ($resuming && !$rotated) {
-            $this->renew();
+            $this->renewCookie = true;
         }
     }
 
     /**
-     * Re-send the session cookie with a fresh expiry.
+     * The session cookie with a fresh expiry.
      */
-    private function renew(): void
+    private function cookieHeader(): string
     {
-        setcookie(session_name(), session_id(), [
-            'expires' => time() + $this->lifetime,
-            'path' => '/',
-            'httponly' => true,
-            'secure' => ($_SERVER['HTTPS'] ?? '') === 'on'
-                || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https'),
-            'samesite' => 'Lax',
-        ]);
+        $cookie = sprintf(
+            '%s=%s; Expires=%s; Path=/; HttpOnly; SameSite=Lax',
+            session_name(),
+            session_id(),
+            gmdate('D, d M Y H:i:s \G\M\T', time() + $this->lifetime),
+        );
+
+        if ($this->isSecure()) {
+            $cookie .= '; Secure';
+        }
+
+        return $cookie;
+    }
+
+    private function isSecure(): bool
+    {
+        if (($_SERVER['HTTPS'] ?? '') === 'on') {
+            return true;
+        }
+
+        $forwarded = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '';
+
+        if ($forwarded === 'https' && $this->proxyIsTrusted()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function proxyIsTrusted(): bool
+    {
+        // Without an explicit list of trusted proxies, the header can be forged
+        // by the client. A shared-hosting site that is not behind a proxy must
+        // not treat this header as secure.
+        if ($this->trustedProxies === []) {
+            return false;
+        }
+
+        $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+
+        return in_array($remoteAddr, $this->trustedProxies, true);
     }
 
     /**
