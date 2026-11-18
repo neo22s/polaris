@@ -39,7 +39,7 @@
         "optimize-autoloader": true
     },
     "scripts": {
-        "test": "phpunit",
+        "test": "vendor/bin/phpunit",
         "lint": "php bin/lint.php",
         "check": [
             "@lint",
@@ -48,6 +48,7 @@
         "package": "php bin/package.php",
         "deploy": "php bin/deploy.php",
         "migrate": "php bin/migrate.php",
-        "version": "php bin/version.php"
+        "version": "php bin/version.php",
+        "test:integration": "@php -r \"putenv('POLARIS_REQUIRE_INTEGRATION=1');\" && vendor/bin/phpunit"
     }
 }

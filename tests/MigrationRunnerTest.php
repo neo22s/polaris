@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Polaris\Tests;
 
-use PDO;
 use PHPUnit\Framework\TestCase;
 use Polaris\Deploy\MigrationRunner;
 use Polaris\Support\Database;
@@ -30,19 +29,11 @@ final class MigrationRunnerTest extends TestCase
     {
         parent::setUp();
 
-        $this->database = 'polaris_migration_test_' . bin2hex(random_bytes(4));
-
-        try {
-            $root = new PDO(
-                sprintf('mysql:host=%s;port=%d', $this->host(), $this->port()),
-                (string) (getenv('TEST_DB_USERNAME') ?: 'root'),
-                (string) (getenv('TEST_DB_PASSWORD') ?: ''),
-                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION],
-            );
-            $root->exec('CREATE DATABASE `' . $this->database . '`');
-        } catch (\Throwable $e) {
-            $this->markTestSkipped('MySQL is not available: ' . $e->getMessage());
-        }
+        // The probe and the connection live in the helper, so a typo in
+        // TEST_DB_HOST fails in a second instead of hanging the job.
+        $this->database = \Polaris\Tests\Support\Integration::temporaryDatabaseName();
+        $root = \Polaris\Tests\Support\Integration::pdo($this);
+        $root->exec('CREATE DATABASE `' . $this->database . '`');
 
         $this->db = new Database([
             'host' => $this->host(),

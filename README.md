@@ -6,8 +6,11 @@ Secure by default, updatable without merging code, and small enough to run on a
 5 € shared hosting plan. No Node, no Docker, no Composer on the server.
 
 ```bash
-composer check   # lint + 149 tests, no database required for the kernel suite
+composer check   # lint + 149 tests
 ```
+
+No database needed: 143 tests are pure, 6 need MySQL and skip with a clear
+message. CI runs them for real, on PHP 8.1 through 8.4.
 
 ---
 
@@ -236,11 +239,24 @@ composer test     # PHPUnit
 composer check    # PHP syntax lint + PHPUnit
 ```
 
-- Unit tests for pure helpers, URL safety, pagination, version consistency.
-- Integration tests for anything touching MySQL, using a transaction per test.
-- Fakes for email and uploads; no test reaches a real server.
-- Guards that fail loudly: kernel purity (no `App\` references), mail MIME
-  correctness, API/REST payload parity, deploy archive contents, version drift.
+143 tests run with no services at all: pure helpers, URL safety, pagination,
+version consistency, MIME output, archive contents.
+
+6 tests talk to MySQL (the migration runner and the rate limiter). Without a
+database they skip with a message, so a fresh clone is green out of the box.
+With `TEST_DB_*` set they run for real.
+
+CI sets `POLARIS_REQUIRE_INTEGRATION=1`, which turns that skip into a failure:
+a database that is down must not look like a passing suite.
+
+```bash
+mysql -uroot -e "CREATE DATABASE polaris_test"
+TEST_DB_DATABASE=polaris_test composer test:integration
+```
+
+- Fakes for email and uploads: no test reaches a real server.
+- Guards that fail loudly: kernel purity (no `App\` references), version drift,
+  mail MIME correctness, API/REST payload parity, deploy archive contents.
 
 ## Security
 

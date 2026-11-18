@@ -1,0 +1,119 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  phpunit:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor and the current releases. A starter kit that claims PHP 8.1
+        # has to prove it, and the biggest real risk is a host running 8.1
+        # while development happens on 8.4.
+        php: ['8.1', '8.2', '8.3', '8.4']
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: polaris_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      TEST_DB_HOST: 127.0.0.1
+      TEST_DB_PORT: 3306
+      TEST_DB_DATABASE: polaris_test
+      TEST_DB_USERNAME: root
+      TEST_DB_PASSWORD: root
+      # A skipped integration test looks like a pass. In CI that is a lie, so a
+      # missing database is a failure here.
+      POLARIS_REQUIRE_INTEGRATION: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: gd, intl, pdo_mysql, mbstring, fileinfo, curl
+          coverage: none
+
+      - name: Prepare runtime directories
+        run: mkdir -p var/cache/twig var/sessions var/logs
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Lint and test
+        run: composer check
+
+  # The starter is a separate composer project with the kernel symlinked in.
+  # It is what a user actually installs, so it gets its own job.
+  starter:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: gd, intl, pdo_mysql, mbstring, fileinfo, curl
+          coverage: none
+
+      - name: Link the kernel the way a site does
+        run: ln -s .. kernel
+        working-directory: starter
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+        working-directory: starter
+
+      - name: Lint and test
+        run: composer check
+        working-directory: starter
+
+  # A release must build from a clean checkout without dev dependencies, and the
+  # archive must not contain secrets or tests.
+  package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: gd, intl, pdo_mysql, mbstring, fileinfo, curl
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Build the site release
+        run: php bin/package.php --site=starter --out=dist
+
+      - name: The archive must be complete and clean
+        run: |
+          set -eu
+          unzip -q dist/polaris-site-*.zip -d extracted
+          test -f extracted/index.php
+          test -f extracted/kernel/src/Http/Kernel.php
+          test -f extracted/resources/views/layout.twig
+          test -f extracted/AGENTS.md
+          test ! -e extracted/tests
+          test ! -e extracted/.env
+          test ! -d extracted/vendor/phpunit
+          echo "release OK"

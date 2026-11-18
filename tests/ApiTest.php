@@ -382,18 +382,17 @@ final class ApiTest extends TestCase
 
     private function database(): Database
     {
-        try {
-            $database = new Database([
-                'host' => (string) (getenv('TEST_DB_HOST') ?: '127.0.0.1'),
-                'port' => (int) (getenv('TEST_DB_PORT') ?: 3306),
-                'database' => (string) (getenv('TEST_DB_DATABASE') ?: 'modelpolas_test'),
-                'username' => (string) (getenv('TEST_DB_USERNAME') ?: 'root'),
-                'password' => (string) (getenv('TEST_DB_PASSWORD') ?: ''),
-            ]);
-            $database->pdo()->query('SELECT 1');
-        } catch (\Throwable $e) {
-            $this->markTestSkipped('MySQL is not available: ' . $e->getMessage());
-        }
+        // Probe, connect and skip/fail decisions live in the helper, so a wrong
+        // TEST_DB_HOST costs a second instead of the job timeout.
+        \Polaris\Tests\Support\Integration::pdo($this);
+
+        $database = new Database([
+            'host' => (string) (getenv('TEST_DB_HOST') ?: '127.0.0.1'),
+            'port' => (int) (getenv('TEST_DB_PORT') ?: 3306),
+            'database' => \Polaris\Tests\Support\Integration::databaseName(),
+            'username' => (string) (getenv('TEST_DB_USERNAME') ?: 'root'),
+            'password' => (string) (getenv('TEST_DB_PASSWORD') ?: ''),
+        ]);
 
         $database->pdo()->exec(
             'CREATE TABLE IF NOT EXISTS rate_limits (id int unsigned NOT NULL AUTO_INCREMENT, bucket varchar(191) NOT NULL, hits int unsigned NOT NULL DEFAULT 0, expires_at datetime NOT NULL, PRIMARY KEY (id), UNIQUE KEY bucket (bucket))',
