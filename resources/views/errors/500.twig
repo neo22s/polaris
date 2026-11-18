@@ -1,0 +1,13 @@
+{% extends 'layout.twig' %}
+
+{% block robots %}noindex, follow{% endblock %}
+{% block title %}{{ t('errors.500_title') }}{% endblock %}
+
+{% block content %}
+<section>
+    <p>500</p>
+    <h1>{{ t('errors.500_title') }}</h1>
+    <p>{{ t('errors.500_body') }}</p>
+    <a href="/">{{ t('errors.500_cta') }}</a>
+</section>
+{% endblock %}

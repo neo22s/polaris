@@ -1,0 +1,53 @@
+{
+    "name": "polarisphp/framework",
+    "description": "Polaris - PHP full-stack starter kit framework for shared hosting.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "ext-mbstring": "*",
+        "ext-pdo_mysql": "*",
+        "php": ">=8.1",
+        "php-di/php-di": "^7.1",
+        "phpmailer/phpmailer": "^6.9",
+        "psr/container": "^1.1 || ^2.0",
+        "psr/http-message": "^1.1 || ^2.0",
+        "psr/http-server-handler": "^1.0",
+        "psr/http-server-middleware": "^1.0",
+        "psr/log": "^1.1 || ^2.0 || ^3.0",
+        "slim/psr7": "^1.8",
+        "slim/slim": "^4.15",
+        "twig/twig": "^3.30"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Polaris\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Polaris\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "platform": {
+            "php": "8.2.0"
+        },
+        "optimize-autoloader": true
+    },
+    "scripts": {
+        "test": "phpunit",
+        "lint": "php bin/lint.php",
+        "check": [
+            "@lint",
+            "@test"
+        ],
+        "package": "php bin/package.php",
+        "deploy": "php bin/deploy.php",
+        "migrate": "php bin/migrate.php",
+        "version": "php bin/version.php"
+    }
+}

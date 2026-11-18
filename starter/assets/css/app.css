@@ -1,0 +1,8 @@
+/* Starter styles. A theme overrides this by shipping its own assets/css/app.css. */
+:root { --ink:#111; --paper:#fff; --muted:#666; --line:#e5e5e5; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: system-ui,-apple-system,"Segoe UI",Arial,sans-serif; color:var(--ink); background:var(--paper); line-height:1.5; }
+a { color: inherit; }
+h1, h2, h3 { margin: 0 0 .5rem; letter-spacing: -.01em; }
+p { margin: 0 0 1rem; }
+code { font-family: ui-monospace,SFMono-Regular,Menlo,monospace; font-size: .9em; }

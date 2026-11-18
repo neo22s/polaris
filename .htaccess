@@ -1,0 +1,51 @@
+# Polaris - root .htaccess
+#
+# The project root is the document root on shared hosting, so anything that is
+# not a real file has to reach index.php, and everything that is not web content
+# has to be blocked.
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Block direct access to code, data and secrets.
+    RewriteRule ^(app|kernel|config|database|resources|var|bin|tests|vendor|themes)/ - [F,L]
+    RewriteRule (^|/)\.(?!well-known) - [F,L]
+    RewriteRule ^(composer\.(json|lock)|README\.md|AGENTS\.md|CONTRIBUTING\.md|SECURITY\.md|TRADEMARK\.md|LICENSE|VERSION|phpunit\.xml.*)$ - [F,L]
+
+    # Everything else that is not a file or directory goes to the front controller.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+# Uploaded files are data, never code: an uploads/.htaccess disables execution
+# on hosts that honour it, and this is the second line of defence.
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/xml
+    AddOutputFilterByType DEFLATE application/javascript application/json
+    AddOutputFilterByType DEFLATE image/svg+xml application/xml
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    # Assets are fingerprint with their mtime by the asset() helper.
+    ExpiresByType text/css "access plus 7 days"
+    ExpiresByType application/javascript "access plus 7 days"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+</IfModule>
+
+# PHP limits for the shared-hosting default that uploads images.
+<IfModule mod_php.c>
+    php_value upload_max_filesize 20M
+    php_value post_max_size 40M
+    php_value max_file_uploads 20
+</IfModule>

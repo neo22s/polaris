@@ -1,0 +1,29 @@
+{% extends 'layout.twig' %}
+
+{% block content %}
+<section class="mx-auto max-w-4xl px-4 py-12">
+    <h1 class="text-2xl font-semibold tracking-tight">{{ t('admin.title') }}</h1>
+    <p class="mt-2 text-sm text-neutral-600">{{ t('admin.body') }}</p>
+
+    <dl class="mt-8 grid gap-4 sm:grid-cols-2">
+        {% for label, value in health %}
+            <div class="border border-neutral-200 p-4">
+                <dt class="text-xs uppercase tracking-[0.15em] text-neutral-500">{{ label }}</dt>
+                <dd class="mt-2 text-sm">
+                    {% if value is same as(true) %}
+                        <span class="text-green-700">{{ t('common.yes') }}</span>
+                    {% elseif value is same as(false) %}
+                        <span class="text-red-700">{{ t('common.no') }}</span>
+                    {% elseif value is iterable %}
+                        <code class="text-xs">{{ value|json_encode }}</code>
+                    {% elseif value is null %}
+                        {{ t('common.never') }}
+                    {% else %}
+                        {{ value }}
+                    {% endif %}
+                </dd>
+            </div>
+        {% endfor %}
+    </dl>
+</section>
+{% endblock %}

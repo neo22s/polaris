@@ -1,0 +1,22 @@
+{% extends 'layout.twig' %}
+
+{% block content %}
+<section class="mx-auto max-w-sm px-4 py-20">
+    <h1 class="text-2xl font-semibold tracking-tight">{{ t('auth.login_title') }}</h1>
+    <p class="mt-2 text-sm text-neutral-600">{{ t('auth.login_body') }}</p>
+
+    {% if error is defined and error %}
+        <p class="mt-6 border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{ error }}</p>
+    {% endif %}
+
+    <form method="post" action="/login" class="mt-8 space-y-4">
+        {{ csrf_field() }}
+        <div>
+            <label for="email" class="block text-sm font-medium">{{ t('field.email') }}</label>
+            <input id="email" name="email" type="email" required autofocus autocomplete="email"
+                   class="mt-1 w-full border border-neutral-300 px-3 py-2">
+        </div>
+        <button type="submit" class="w-full bg-ink px-5 py-2.5 text-white">{{ t('auth.send_link') }}</button>
+    </form>
+</section>
+{% endblock %}
