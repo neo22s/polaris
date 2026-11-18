@@ -5,12 +5,43 @@
 Secure by default, updatable without merging code, and small enough to run on a
 5 € shared hosting plan. No Node, no Docker, no Composer on the server.
 
-```bash
-composer check   # lint + 149 tests
+---
+
+## Start with a prompt
+
+Paste this into OpenCode, Claude Code, Cursor or any agent that can read your
+files:
+
+```text
+Install Polaris (https://github.com/neo22s/polaris) and build me a website.
+
+Read AGENTS.md first: it is the contract you must follow here. Then read
+docs/AI-PROMPT.md and follow it exactly:
+
+- ask me the questions it lists, and wait for the answers before writing code;
+- show me a plan (entities, screens, API operations, and what you will NOT
+  build in v1) and wait for my approval;
+- build in its order, run `composer check` after each block, and fix failures
+  instead of disabling tests;
+- never edit kernel/. Use an extension point or ask me.
+
+When you are done, tell me what you built, what is missing, and how to deploy.
 ```
 
-No database needed: 143 tests are pure, 6 need MySQL and skip with a clear
-message. CI runs them for real, on PHP 8.1 through 8.4.
+Why a prompt instead of a web builder: the result is **your code on your
+hosting**, and the agent inherits the rules from the repository instead of
+inventing them. The conventions, the tests and the security defaults live in
+files, not in a chat that scrolls away. Full explanation and a worked example
+(an online fruit shop) in [`docs/AI-PROMPT.md`](docs/AI-PROMPT.md).
+
+No domain yet? `starter/` is a complete site you can run right now:
+
+```bash
+cd starter && composer install && cp .env.example .env
+ln -s .. kernel && php bin/migrate.php && php -S 127.0.0.1:8000 -t .
+```
+
+Open `/setup`, create the admin, use the printed login link.
 
 ---
 
@@ -90,43 +121,6 @@ longer accepts.
 | Ops | File cache, rate limiter, cron status, signed releases, incremental FTP deploy |
 | Tooling | `bin/make.php crud`, `bin/package.php`, `bin/deploy.php`, `bin/migrate.php`, `bin/version.php` |
 
-## Quick start
-
-### On a hosting (no SSH needed)
-
-1. Create a MySQL database and user in the control panel.
-2. Upload `install.php` to the document root and open it.
-3. Fill five fields. It downloads the release, verifies it, writes `.env`,
-   applies the schema, creates the first admin and prints a single-use login
-   link, then deletes itself.
-
-Read [`docs/INSTALL.md`](docs/INSTALL.md) for the security details.
-
-### Locally
-
-```bash
-git clone https://github.com/neo22s/polaris
-cd polaris/starter
-composer install
-cp .env.example .env          # set DB_* and APP_URL
-ln -s .. kernel               # the kernel is a directory in a release
-php bin/migrate.php
-php -S 127.0.0.1:8000 -t .
-```
-
-Open `/setup`, create the admin, use the printed link.
-
-### Work on the kernel itself
-
-```bash
-composer install
-cp .env.example .env
-composer check
-```
-
-The kernel suite must pass with **no application present**. `KernelPurityTest`
-fails if kernel code references `App\` or a product brand.
-
 ## Build a feature
 
 ```bash
@@ -146,23 +140,6 @@ create    database/upgrades/…_create_products.sql
 It prints the three things it cannot do for you: the routes to paste, the group
 to register, and the translation keys to add. `--diff` shows without writing;
 `--force` overwrites. It refuses to write inside `kernel/`.
-
-## Build a site with an agent
-
-Paste the prompt in [`docs/AI-PROMPT.md`](docs/AI-PROMPT.md) into Claude, ChatGPT,
-OpenCode or any agent that can read your files. It makes the agent:
-
-1. read `AGENTS.md` before writing anything,
-2. **ask the questions that matter and wait** (hosting, domain, database,
-   languages, payments, who manages orders),
-3. show a plan — entities, screens, API operations, and what it will **not**
-   build in v1 — for your approval,
-4. build in order: entities → services → admin → public → API → tests → i18n,
-5. run `composer check` after each block, and fix failures instead of disabling
-   tests.
-
-The agent cannot declare victory on code that does not lint or pass tests: the
-command decides, not the model.
 
 ## Deploy
 
@@ -203,6 +180,8 @@ will not be declared until a second real site runs on the kernel.
 
 | Document | What it answers |
 |---|---|
+| [`docs/AI-PROMPT.md`](docs/AI-PROMPT.md) | The prompt that starts a project |
+| [`AGENTS.md`](AGENTS.md) | The contract for an AI agent working in a site |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Layers, request lifecycle, extension points |
 | [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) | Coding standards and the kernel/app boundary |
 | [`docs/API.md`](docs/API.md) | One operation → REST + MCP + docs |
@@ -211,9 +190,7 @@ will not be declared until a second real site runs on the kernel.
 | [`docs/ADDING-A-LANGUAGE.md`](docs/ADDING-A-LANGUAGE.md) | Ship a language in three files and one line |
 | [`docs/RECIPES.md`](docs/RECIPES.md) | Add a page, an email, a theme, a setting |
 | [`docs/UPGRADING.md`](docs/UPGRADING.md) | How a site moves to a newer kernel |
-| [`docs/AI-PROMPT.md`](docs/AI-PROMPT.md) | The prompt that starts a project |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | What is done and what is next |
-| [`AGENTS.md`](AGENTS.md) | The contract for an AI agent working in a site |
 
 ## Repository layout
 
@@ -239,24 +216,19 @@ composer test     # PHPUnit
 composer check    # PHP syntax lint + PHPUnit
 ```
 
-143 tests run with no services at all: pure helpers, URL safety, pagination,
-version consistency, MIME output, archive contents.
-
-6 tests talk to MySQL (the migration runner and the rate limiter). Without a
-database they skip with a message, so a fresh clone is green out of the box.
-With `TEST_DB_*` set they run for real.
-
-CI sets `POLARIS_REQUIRE_INTEGRATION=1`, which turns that skip into a failure:
-a database that is down must not look like a passing suite.
+143 tests run with no services at all. 6 need MySQL (the migration runner and
+the rate limiter) and skip with a message when it is absent, so a fresh clone is
+green out of the box. CI sets `POLARIS_REQUIRE_INTEGRATION=1`, which turns that
+skip into a failure: a database that is down must not look like a passing suite.
 
 ```bash
 mysql -uroot -e "CREATE DATABASE polaris_test"
 TEST_DB_DATABASE=polaris_test composer test:integration
 ```
 
-- Fakes for email and uploads: no test reaches a real server.
-- Guards that fail loudly: kernel purity (no `App\` references), version drift,
-  mail MIME correctness, API/REST payload parity, deploy archive contents.
+Guards that fail loudly: kernel purity (no `App\` references), version drift,
+mail MIME correctness, API/REST payload parity, and the contents of a release
+archive.
 
 ## Security
 
