@@ -62,10 +62,16 @@ final class SiteBuilder
 
     /**
      * @param string $siteRoot The site to stage.
+     * @param string|null $kernelRoot Where the kernel lives, when the site does
+     *        not have its own `kernel/` (a development checkout links it, a
+     *        fresh clone of this repository does not).
      * @return string The staging directory (caller removes it).
      */
-    public static function stage(string $siteRoot, string $composerBinary = 'composer'): string
-    {
+    public static function stage(
+        string $siteRoot,
+        string $composerBinary = 'composer',
+        ?string $kernelRoot = null,
+    ): string {
         $siteRoot = rtrim($siteRoot, '/');
         $staging = sys_get_temp_dir() . '/polaris-stage-' . bin2hex(random_bytes(6));
 
@@ -75,6 +81,13 @@ final class SiteBuilder
 
         foreach (self::SOURCES as $entry) {
             $source = $siteRoot . '/' . $entry;
+
+            // A site in a development checkout has `kernel/` as a symlink; a
+            // fresh clone of the kernel repository does not. Without this the
+            // release silently ships without the framework.
+            if ($entry === 'kernel' && !file_exists($source) && $kernelRoot !== null) {
+                $source = $kernelRoot;
+            }
 
             if (!file_exists($source)) {
                 continue;

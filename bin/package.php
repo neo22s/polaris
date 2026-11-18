@@ -68,8 +68,12 @@ if ($site !== null) {
 
     fwrite(STDOUT, "Staging {$siteRoot} without development dependencies…\n");
 
+    // When packaging `starter/` from this repository there is no `kernel/`
+    // symlink (it is git-ignored), so the kernel has to be named explicitly.
+    $kernelRoot = is_dir($siteRoot . '/kernel') ? null : $root;
+
     try {
-        $staging = SiteBuilder::stage($siteRoot);
+        $staging = SiteBuilder::stage($siteRoot, 'composer', $kernelRoot);
     } catch (Throwable $e) {
         fwrite(STDERR, $e->getMessage() . "\n");
         exit(1);

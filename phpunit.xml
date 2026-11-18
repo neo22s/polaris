@@ -5,7 +5,8 @@
          colors="true"
          cacheDirectory="var/cache/phpunit"
          failOnWarning="true"
-         failOnRisky="true">
+         failOnRisky="true"
+         displayDetailsOnSkippedTests="true">
     <testsuites>
         <testsuite name="Polaris">
             <directory>tests</directory>
