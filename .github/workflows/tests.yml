@@ -123,8 +123,12 @@ jobs:
           unzip -q dist/polaris-site-*.zip -d extracted
           test -f extracted/index.php
           test -f extracted/kernel/src/Http/Kernel.php
-          test -f extracted/resources/views/layout.twig
           test -f extracted/AGENTS.md
+          # A site view (the app layer) and a kernel view (the fallback layout the
+          # site inherits). Asserting the app has its own layout would be wrong:
+          # the cascade means it does not need one.
+          test -f extracted/resources/views/home.twig
+          test -f extracted/kernel/resources/views/layout.twig
           test ! -e extracted/tests
           test ! -e extracted/.env
           test ! -d extracted/vendor/phpunit
