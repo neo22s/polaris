@@ -6,6 +6,9 @@ namespace Polaris\Http;
 
 use DI\Container;
 use DI\ContainerBuilder;
+use Polaris\Api\McpController;
+use Polaris\Api\Registry;
+use Polaris\Auth\AuthDependencies;
 use Polaris\Auth\AuthService;
 use Polaris\Auth\NewsletterAudience;
 use Polaris\Auth\NullProfileProvisioner;
@@ -24,6 +27,7 @@ use Polaris\Repositories\UserRepository;
 use Polaris\Repositories\SettingRepository;
 use Polaris\Repositories\TranslationRepository;
 use Polaris\Services\AcumbamailService;
+use Polaris\Services\ImageService;
 use Polaris\Services\MagicLinkService;
 use Polaris\Services\NewsletterSyncService;
 use Polaris\Services\SettingsService;
@@ -32,7 +36,9 @@ use Polaris\Support\Config;
 use Polaris\Support\Database;
 use Polaris\Support\Env;
 use Polaris\Support\Flash;
-use Polaris\Support\RateLimiter;
+use Polaris\Support\PhpUploadCheck;
+use Polaris\Repositories\RateLimitRepository;
+use Polaris\Support\UploadCheck;
 use Polaris\Support\SystemStatus;
 use Polaris\Support\Translator;
 use Polaris\View\TemplateDataMiddleware;
@@ -56,7 +62,7 @@ use Twig\Environment;
  */
 final class Kernel
 {
-    public const VERSION = '0.1.0';
+    public const VERSION = '0.2.0';
 
     /**
      * @param string $root Site root (the directory holding index.php).
@@ -156,7 +162,22 @@ final class Kernel
             // still answer which languages this site ships.
             'locales' => (array) ($settings['locales'] ?? ['en']),
 
+            CsrfMiddleware::class => static fn (ContainerInterface $c): CsrfMiddleware => new CsrfMiddleware(
+                $settings,
+                $c->get(Flash::class),
+                $c->get(\Slim\Psr7\Factory\ResponseFactory::class),
+            ),
             Database::class => static fn (): Database => new Database($settings['db']),
+            UploadCheck::class => static fn (): UploadCheck => new PhpUploadCheck(),
+            ImageService::class => static fn (ContainerInterface $c): ImageService => new ImageService(
+                (string) $settings['paths']['uploads'],
+                $c->get(UploadCheck::class),
+            ),
+            McpController::class => static fn (ContainerInterface $c): McpController => new McpController(
+                $c->get(Registry::class),
+                ['name' => 'Polaris MCP'],
+                (int) ($settings['mcp']['max_bytes'] ?? 4 * 1024 * 1024),
+            ),
             Flash::class => static fn (): Flash => new Flash(),
             Cache::class => static fn (): Cache => new Cache(
                 (string) $settings['cache']['path'],
@@ -210,16 +231,18 @@ final class Kernel
                 $settings,
             ),
 
-            AuthService::class => static fn (ContainerInterface $c): AuthService => new AuthService(
-                $c->get(UserStore::class),
-                $c->get(MagicLinkRepository::class),
-                $c->get(MagicLinkService::class),
-                $c->get(MailerInterface::class),
-                $c->get(SubscriberSync::class),
-                $c->get(ProfileProvisioner::class),
-                $c->get(Database::class),
-                $c->get(RateLimiter::class),
-                $settings,
+            AuthService::class => static fn (ContainerInterface $c): AuthService => AuthService::withDependencies(
+                new AuthDependencies(
+                    $c->get(UserStore::class),
+                    $c->get(MagicLinkRepository::class),
+                    $c->get(MagicLinkService::class),
+                    $c->get(MailerInterface::class),
+                    $c->get(SubscriberSync::class),
+                    $c->get(ProfileProvisioner::class),
+                    $c->get(Database::class),
+                    $c->get(RateLimitRepository::class),
+                    $settings,
+                ),
             ),
 
             SessionMiddleware::class => static fn (): SessionMiddleware => new SessionMiddleware(
@@ -230,7 +253,7 @@ final class Kernel
                 (array) ($settings['trusted_proxies'] ?? []),
             ),
 
-            RateLimiter::class => static fn (ContainerInterface $c): RateLimiter => new RateLimiter(
+            RateLimitRepository::class => static fn (ContainerInterface $c): RateLimitRepository => new RateLimitRepository(
                 $c->get(Database::class),
             ),
 

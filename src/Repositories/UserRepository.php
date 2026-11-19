@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Polaris\Repositories;
 
+use Polaris\Support\Clock;
 use Polaris\Auth\HandleStore;
 use Polaris\Auth\NewsletterAudience;
 use Polaris\Support\Database;
@@ -64,13 +65,13 @@ class UserRepository implements HandleStore, NewsletterAudience
     /** @param array<string,mixed> $data */
     public function update(int $id, array $data): void
     {
-        $data['updated_at'] = date('Y-m-d H:i:s');
+        $data['updated_at'] = Clock::now();
         $this->db->update('users', $data, 'id = :where_id', ['where_id' => $id]);
     }
 
     public function markEmailVerified(int $id): void
     {
-        $this->update($id, ['email_verified_at' => date('Y-m-d H:i:s')]);
+        $this->update($id, ['email_verified_at' => Clock::now()]);
     }
 
     public function promote(int $id): void

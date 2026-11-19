@@ -54,6 +54,7 @@ final class SiteBuilder
         'database',
         'kernel',
         'resources',
+        'uploads',
         'composer.json',
         'composer.lock',
         'VERSION',

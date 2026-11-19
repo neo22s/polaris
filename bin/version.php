@@ -5,10 +5,11 @@ declare(strict_types=1);
 /*
  * The single command that changes the version.
  *
- * The number lives in `VERSION` (read by the packager and the installer) and in
- * `Kernel::VERSION` (read at runtime, because a constant cannot come from a
- * file). Two places is one too many to edit by hand: a release where they
- * disagree ships an admin panel that lies about what is running.
+ * The number lives in `VERSION` and is mirrored in the places that cannot read
+ * a file at runtime: `Kernel::VERSION` and the installer constant. The API
+ * surfaces (OpenAPI, MCP, docs) read `Kernel::VERSION`, so they cannot drift.
+ * Two places to edit by hand is one too many: a release where they disagree
+ * ships an admin panel that lies about what is running.
  *
  * Usage:
  *   php bin/version.php                 show the current version
@@ -33,7 +34,7 @@ if ($args === []) {
 $requested = $args[0];
 
 if ($requested === 'bump') {
-    if (!preg_match($semver, $current, $match) === 1) {
+    if (preg_match($semver, $current) !== 1) {
         fwrite(STDERR, "Current VERSION is not SemVer: {$current}\n");
         exit(1);
     }
@@ -58,26 +59,27 @@ if (preg_match($semver, $requested) !== 1) {
     exit(1);
 }
 
+/**
+ * Replace exactly one version constant in a PHP file. A failure is fatal on
+ * purpose: a release with two versions is worse than no release.
+ */
+$replaceConstant = static function (string $relative, string $pattern, string $label) use ($root, $requested): void {
+    $path = $root . '/' . $relative;
+    $source = (string) file_get_contents($path);
+    $updated = preg_replace($pattern, '${1}' . $requested . '${2}', $source, 1, $count);
+
+    if ($count !== 1 || $updated === null) {
+        fwrite(STDERR, "Could not update {$label}. Edit {$relative} by hand.\n");
+        exit(1);
+    }
+
+    file_put_contents($path, $updated);
+};
+
 file_put_contents($file, $requested . "\n");
 
-// Keep the runtime constant in step. A failure here is fatal on purpose: a
-// release with two versions is worse than no release.
-$kernel = $root . '/src/Http/Kernel.php';
-$source = (string) file_get_contents($kernel);
-$updated = preg_replace(
-    "/public const VERSION = '[^']*';/",
-    "public const VERSION = '{$requested}';",
-    $source,
-    1,
-    $count,
-);
-
-if ($count !== 1 || $updated === null) {
-    fwrite(STDERR, "Could not update Kernel::VERSION. Edit src/Http/Kernel.php by hand.\n");
-    exit(1);
-}
-
-file_put_contents($kernel, $updated);
+$replaceConstant('src/Http/Kernel.php', "/(public const VERSION = ')[^']*(';)/", 'Kernel::VERSION');
+$replaceConstant('install.php', "/(const POLARIS_INSTALLER_VERSION = ')[^']*(';)/", 'POLARIS_INSTALLER_VERSION');
 
 fwrite(STDOUT, "Version set to {$requested}.\n");
 fwrite(STDOUT, "Now add the CHANGELOG entry before releasing:\n\n  ## [{$requested}] - " . date('Y-m-d') . "\n");

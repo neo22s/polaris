@@ -114,7 +114,6 @@ final class TranslationService
             $fileDefaults[$locale] = $this->fileDefaults($locale);
         }
 
-        // Every key across all locales, sorted.
         $allKeys = [];
         foreach ($locales as $locale) {
             foreach (array_keys($fileDefaults[$locale]) as $key) {
@@ -125,7 +124,6 @@ final class TranslationService
         $allKeys = array_keys($allKeys);
         sort($allKeys);
 
-        // Apply the filters.
         $keys = $allKeys;
 
         if ($group !== '') {

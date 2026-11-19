@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Polaris\Middleware;
 
+use Polaris\Support\TrustedProxy;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -32,7 +33,7 @@ final class SecurityHeadersMiddleware implements MiddlewareInterface
             ->withHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()')
             ->withHeader('Content-Security-Policy', $this->csp());
 
-        if ($this->isSecure($request)) {
+        if ((new TrustedProxy($this->trustedProxies))->isSecure($request)) {
             $response = $response->withHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 
@@ -65,20 +66,4 @@ final class SecurityHeadersMiddleware implements MiddlewareInterface
             . "connect-src 'self'";
     }
 
-    private function isSecure(ServerRequestInterface $request): bool
-    {
-        $server = $request->getServerParams();
-
-        if (($server['HTTPS'] ?? '') === 'on') {
-            return true;
-        }
-
-        $remoteAddr = $server['REMOTE_ADDR'] ?? 'unknown';
-
-        if (!in_array($remoteAddr, $this->trustedProxies, true)) {
-            return false;
-        }
-
-        return $request->getHeaderLine('X-Forwarded-Proto') === 'https';
-    }
 }

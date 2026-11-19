@@ -13,7 +13,7 @@ use Polaris\Auth\SubscriberSync;
  * Failures are logged and swallowed: a mailing-list outage must never break
  * registration, account deletion or cron work.
  */
-class NewsletterSyncService implements SubscriberSync
+final class NewsletterSyncService implements SubscriberSync
 {
     public function __construct(
         private NewsletterAudience $audience,

@@ -167,6 +167,12 @@ final class Packager
 
     private static function isIncluded(string $relative): bool
     {
+        // Uploaded *content* is never packaged, but the execution guard has to
+        // ship: without it a site restored from a release accepts .php uploads.
+        if ($relative === 'uploads/.htaccess') {
+            return true;
+        }
+
         $parts = explode('/', $relative);
 
         foreach (self::NEVER as $excluded) {

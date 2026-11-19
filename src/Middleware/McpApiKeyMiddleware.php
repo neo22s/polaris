@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Polaris\Middleware;
 
 use Polaris\Api\ApiKeyMiddleware;
-use Polaris\Support\RateLimiter;
+use Polaris\Repositories\RateLimitRepository;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
@@ -25,7 +25,7 @@ final class McpApiKeyMiddleware implements MiddlewareInterface
     private ApiKeyMiddleware $middleware;
 
     /** @param array<string,mixed> $settings */
-    public function __construct(array $settings, RateLimiter $limiter)
+    public function __construct(array $settings, RateLimitRepository $limiter)
     {
         $this->middleware = new ApiKeyMiddleware($settings, $limiter, 'mcp');
     }

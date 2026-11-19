@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: **0.1.0** — kernel extracted and running against a production
+Status: **0.2.0** — kernel extracted and running against a production
 application. The application layer and the tooling below are the next steps.
 
 ## Done
@@ -55,6 +55,13 @@ application. The application layer and the tooling below are the next steps.
 - Contacts, companies, deals, activities
 - Built with the generator on purpose: if it takes weeks instead of days, the
   generator is not good enough yet
+
+## Deprecations
+
+- `Polaris\Middleware\McpApiKeyMiddleware` is an alias kept for sites that
+  wired it before `Polaris\Api\ApiKeyMiddleware` gained MCP mode. New sites use
+  the latter. It will be removed in **0.3.0**; until then it is marked
+  `@deprecated` in its docblock.
 
 ## Explicitly not planned
 

@@ -2,12 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Polaris\Support;
+namespace Polaris\Repositories;
+
+use Polaris\Support\Clock;
+use Polaris\Support\Database;
 
 /**
- * Simple database-backed rate limiter for login/register attempts.
+ * Rate-limit counters, one row per bucket.
+ *
+ * The policy (how many attempts over what window) belongs to the callers; this
+ * class only owns the SQL that counts them.
  */
-final class RateLimiter
+final class RateLimitRepository
 {
     public function __construct(private Database $db)
     {
@@ -31,7 +37,7 @@ final class RateLimiter
         // capped so a flood of requests cannot overflow the column.
         // Every placeholder is used once: native prepares reject a repeated
         // named parameter, so the current time is bound twice.
-        $expiresAt = date('Y-m-d H:i:s', $now + $decaySeconds);
+        $expiresAt = Clock::at($now + $decaySeconds);
 
         $this->db->execute(
             'INSERT INTO rate_limits (bucket, hits, expires_at) VALUES (:bucket, 1, :new_expires)
@@ -41,8 +47,8 @@ final class RateLimiter
             [
                 'bucket' => $key,
                 'new_expires' => $expiresAt,
-                'now' => date('Y-m-d H:i:s', $now),
-                'now_again' => date('Y-m-d H:i:s', $now),
+                'now' => Clock::at($now),
+                'now_again' => Clock::at($now),
                 'cap' => $maxAttempts + 1,
                 'reset_expires' => $expiresAt,
             ],
@@ -60,7 +66,7 @@ final class RateLimiter
     {
         return $this->db->execute(
             'DELETE FROM rate_limits WHERE expires_at < :now',
-            ['now' => date('Y-m-d H:i:s')],
+            ['now' => Clock::now()],
         );
     }
 }

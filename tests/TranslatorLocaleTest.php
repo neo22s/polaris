@@ -103,6 +103,15 @@ final class TranslatorLocaleTest extends TestCase
         $this->assertSame('Email is required.', $translator->trans('field', ['a' => 'Email']));
     }
 
+    public function testParameterValuesAreLiteralEvenWhenTheyLookLikeBackreferences(): void
+    {
+        $translator = $this->translator(['en'], [
+            'en' => $this->messages(['hi' => 'Hello :name!']),
+        ]);
+
+        $this->assertSame('Hello $1 ${1} $& \\1!', $translator->trans('hi', ['name' => '$1 ${1} $& \\1']));
+    }
+
     /**
      * @param array<int,string> $locales
      * @param array<string,array<string,string>> $files

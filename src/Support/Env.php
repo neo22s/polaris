@@ -39,49 +39,16 @@ final class Env
             return;
         }
 
-        $lines = file($file, FILE_IGNORE_NEW_LINES);
+        $content = @file_get_contents($file);
 
-        if ($lines === false) {
+        if ($content === false) {
             return;
         }
 
-        foreach ($lines as $line) {
-            $line = trim($line);
-
-            if ($line === '' || str_starts_with($line, '#')) {
-                continue;
-            }
-
-            if (str_starts_with($line, 'export ')) {
-                $line = trim(substr($line, 7));
-            }
-
-            $parts = explode('=', $line, 2);
-
-            if (count($parts) !== 2) {
-                continue;
-            }
-
-            $key = trim($parts[0]);
-            $value = trim($parts[1]);
-
-            if ($key === '' || !preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $key)) {
-                continue;
-            }
-
-            // Quoted values keep their spaces and inline # literally.
-            if (strlen($value) >= 2 && $value[0] === '"' && substr($value, -1) === '"') {
-                $value = stripcslashes(substr($value, 1, -1));
-            } elseif (strlen($value) >= 2 && $value[0] === "'" && substr($value, -1) === "'") {
-                $value = substr($value, 1, -1);
-            } else {
-                // An unquoted value ends at the first unescaped # comment.
-                $hash = strpos($value, ' #');
-                if ($hash !== false) {
-                    $value = rtrim(substr($value, 0, $hash));
-                }
-            }
-
+        // The deploy script reads .deploy.env through the same grammar. A file
+        // that parses to different values in the two places is a deploy that
+        // tests against one database and migrates another.
+        foreach (DotenvParser::parse($content) as $key => $value) {
             // A real environment variable wins: the hosting, or a test
             // bootstrap, may have set it before the file was read.
             if (getenv($key) !== false) {

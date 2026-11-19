@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Polaris\Repositories;
 
+use Polaris\Support\Clock;
 use Polaris\Support\Database;
 
 /**
@@ -30,7 +31,7 @@ final class SettingRepository
         $this->db->execute(
             'INSERT INTO settings (setting_key, value, updated_at) VALUES (:key, :value, :updated_at)
              ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = VALUES(updated_at)',
-            ['key' => $key, 'value' => $value, 'updated_at' => date('Y-m-d H:i:s')],
+            ['key' => $key, 'value' => $value, 'updated_at' => Clock::now()],
         );
 
         $this->cache = null;

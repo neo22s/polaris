@@ -172,10 +172,13 @@ final class Translator
 
         foreach ($params as $name => $replacement) {
             // A word boundary, so a parameter called "a" does not replace the
-            // ":a" inside ":admin".
-            $value = (string) preg_replace(
+            // ":a" inside ":admin". A callback keeps the replacement literal:
+            // preg_replace would read "$1" or "${1}" in a parameter as a
+            // backreference and silently corrupt the message.
+            $literal = (string) $replacement;
+            $value = (string) preg_replace_callback(
                 '/:' . preg_quote((string) $name, '/') . '\b/',
-                (string) $replacement,
+                static fn (): string => $literal,
                 $value,
             );
         }

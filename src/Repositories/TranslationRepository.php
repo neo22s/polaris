@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Polaris\Repositories;
 
+use Polaris\Support\Clock;
 use Polaris\Support\Database;
 
 /**
@@ -77,7 +78,7 @@ final class TranslationRepository
                 'locale' => $locale,
                 'key' => $key,
                 'value' => $value,
-                'updated_at' => date('Y-m-d H:i:s'),
+                'updated_at' => Clock::now(),
             ],
         );
     }

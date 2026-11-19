@@ -46,6 +46,7 @@ final class DeployTest extends TestCase
         $this->write('tests/FooTest.php', '<?php');
         $this->write('var/cache/x', 'cache');
         $this->write('uploads/polas/a.webp', 'image');
+        $this->write('uploads/.htaccess', 'php_flag engine off');
         $this->write('dist/old.zip', 'zip');
         $this->write('.htaccess', 'RewriteEngine On');
         $this->write('debug.log', 'log');
@@ -58,6 +59,7 @@ final class DeployTest extends TestCase
         $this->assertContains('index.php', $names);
         $this->assertContains('app/Controller.php', $names);
         $this->assertContains('.htaccess', $names, 'The rewrite rules are required on the host.');
+        $this->assertContains('uploads/.htaccess', $names, 'The upload execution guard must ship with the release.');
         $this->assertContains('MANIFEST.json', $names);
         $this->assertContains('VERSION', $names);
 
@@ -165,14 +167,18 @@ final class DeployTest extends TestCase
     {
         $script = RemoteRunner::build(['0001_core.sql' => 'CREATE TABLE x (id int);'], 'a-secret-token');
 
-        // The token check must come before anything else, including the unlink.
         $this->assertStringContainsString("hash_equals('a-secret-token'", $script);
         $this->assertStringContainsString("http_response_code(403)", $script);
+        $this->assertStringContainsString("\$_POST['t']", $script, 'The token must travel in the POST body, not the URL.');
+        $this->assertStringNotContainsString("\$_GET['t']", $script);
+        $this->assertStringContainsString("!== 'POST'", $script);
 
-        $tokenPosition = (int) strpos($script, 'hash_equals');
+        // The script deletes itself before it checks the token: a stray copy
+        // cannot be probed later, and no URL carries the secret into a log.
         $unlinkPosition = (int) strpos($script, '@unlink(__FILE__)');
+        $tokenPosition = (int) strpos($script, 'hash_equals');
 
-        $this->assertLessThan($unlinkPosition, $tokenPosition, 'The token is checked before anything runs.');
+        $this->assertLessThan($tokenPosition, $unlinkPosition, 'The runner deletes itself before checking the token.');
     }
 
     public function testTheMigrationRunnerCarriesTheSqlAndDeletesItself(): void

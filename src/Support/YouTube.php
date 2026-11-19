@@ -23,7 +23,7 @@ final class YouTube
 
         $url = trim($url);
 
-        // Already an id?
+        // Callers may already hold an id, so accept either form.
         if (preg_match('/^[A-Za-z0-9_-]{11}$/', $url) === 1) {
             return $url;
         }

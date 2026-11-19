@@ -11,7 +11,7 @@ use Polaris\Http\Kernel;
 use Polaris\Middleware\SecurityHeadersMiddleware;
 use Polaris\Middleware\SessionMiddleware;
 use Polaris\Support\Env;
-use Polaris\Support\RateLimiter;
+use Polaris\Repositories\RateLimitRepository;
 use Slim\App;
 
 /**
@@ -53,7 +53,7 @@ final class KernelBootTest extends TestCase
 
         // The services the request lifecycle depends on, resolved the same way
         // a real request resolves them.
-        $this->assertInstanceOf(RateLimiter::class, $container->get(RateLimiter::class));
+        $this->assertInstanceOf(RateLimitRepository::class, $container->get(RateLimitRepository::class));
         $this->assertInstanceOf(AuthService::class, $container->get(AuthService::class));
         $this->assertInstanceOf(
             SecurityHeadersMiddleware::class,

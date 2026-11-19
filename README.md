@@ -58,8 +58,8 @@ Polaris makes them requirements:
 | **AI-native** | `AGENTS.md` is the contract an agent must follow. The scaffolder, the API layer and `composer check` make the correct shape the easy shape. |
 | **Secure by default** | CSRF on every state-changing request, prepared statements everywhere, single-use hashed magic links, upload re-encoding, CSP and security headers. |
 | **Updatable** | `kernel/` is read-only and replaced on upgrade. Your `app/` is never merged. |
-| **Tested** | 159 kernel tests. A bug fix ships with the test that failed first. |
-| **Self-contained** | 19 runtime packages, ~4.5 MB of vendor, file cache instead of Redis, MySQL only. |
+| **Tested** | 191 kernel tests. A bug fix ships with the test that failed first. |
+| **Self-contained** | 19 runtime packages, ~4.5 MB of runtime vendor in a release (a dev checkout is larger), file cache instead of Redis, MySQL only. |
 | **Portable** | Zip + installer, or incremental FTP deploy. Works where SSH does not exist. |
 
 ## The two ideas that make it different
@@ -158,7 +158,7 @@ See [`docs/DEPLOY.md`](docs/DEPLOY.md).
 ## Versioning
 
 ```bash
-php bin/version.php              # 0.1.0
+php bin/version.php              # 0.2.0
 php bin/version.php bump minor   # writes VERSION and Kernel::VERSION together
 ```
 
@@ -200,7 +200,7 @@ kernel (this repository)
   config/         kernel defaults
   resources/      base layout, error pages, en/es
   database/       core SQL upgrades
-  bin/            lint, migrate, package, deploy, version, kernel, make
+  bin/            lint, migrate, package, deploy, version, kernel, make, cron
   docs/           the reference
   starter/        a complete site: auth, admin, API, /setup, AGENTS.md, AI prompt
   install.php     the one-file installer
@@ -216,7 +216,7 @@ composer test     # PHPUnit
 composer check    # PHP syntax lint + PHPUnit
 ```
 
-151 tests run with no services at all. 8 need MySQL (the migration runner, the
+183 tests run with no services at all. 8 need MySQL (the migration runner, the
 rate limiter and the magic-link race) and skip with a message when it is absent,
 so a fresh clone is green out of the box. CI sets
 `POLARIS_REQUIRE_INTEGRATION=1`, which turns that skip into a failure: a

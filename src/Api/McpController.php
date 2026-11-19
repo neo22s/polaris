@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Polaris\Api;
 
+use Polaris\Http\Kernel;
+use Polaris\Support\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Psr7\Response;
@@ -21,16 +23,40 @@ final class McpController
 {
     private const PROTOCOL_VERSION = '2024-11-05';
 
-    /** @param array<string,mixed> $serverInfo */
+    /**
+     * @param array<string,mixed> $serverInfo
+     * @param int $maxBytes Hard ceiling on the request body. The configured
+     *        default keeps an authenticated client from exhausting memory with
+     *        a JSON document no server should ever have to parse.
+     */
     public function __construct(
         private Registry $registry,
         private array $serverInfo = [],
+        private int $maxBytes = 4 * 1024 * 1024,
     ) {
     }
 
     public function handle(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $raw = (string) $request->getBody();
+        $declared = $request->getHeaderLine('Content-Length');
+
+        if ($declared !== '' && ctype_digit($declared) && (int) $declared > $this->maxBytes) {
+            return $this->tooLarge($response);
+        }
+
+        $body = $request->getBody();
+
+        // Read one byte past the ceiling: a body of exactly max_bytes is fine,
+        // a single byte more is not. Never decode an unbounded stream.
+        if ($body->isSeekable()) {
+            $body->rewind();
+        }
+
+        $raw = $body->read($this->maxBytes + 1);
+
+        if (strlen($raw) > $this->maxBytes) {
+            return $this->tooLarge($response);
+        }
 
         try {
             $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
@@ -88,7 +114,7 @@ final class McpController
         return [
             'protocolVersion' => self::PROTOCOL_VERSION,
             'capabilities' => ['tools' => new \stdClass()],
-            'serverInfo' => $this->serverInfo + ['name' => 'polaris', 'version' => '1.0.0'],
+            'serverInfo' => $this->serverInfo + ['name' => 'polaris', 'version' => Kernel::VERSION],
         ];
     }
 
@@ -114,25 +140,19 @@ final class McpController
         ];
     }
 
+    private function tooLarge(ResponseInterface $response): ResponseInterface
+    {
+        return JsonResponse::rpc(
+            $response,
+            null,
+            ['code' => -32600, 'message' => 'Request too large'],
+            null,
+            413,
+        );
+    }
+
     private function respond(ResponseInterface $response, mixed $id, ?array $error, mixed $result): ResponseInterface
     {
-        $payload = ['jsonrpc' => '2.0', 'id' => $id];
-
-        if ($error !== null) {
-            $payload['error'] = $error;
-        } else {
-            $payload['result'] = $result;
-        }
-
-        $json = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-        if ($json === false) {
-            $json = '{"jsonrpc":"2.0","id":null,"error":{"code":-32603,"message":"Internal error"}}';
-        }
-
-        $response = $response->withHeader('Content-Type', 'application/json');
-        $response->getBody()->write($json);
-
-        return $response;
+        return JsonResponse::rpc($response, $id, $error, $result);
     }
 }

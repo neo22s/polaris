@@ -13,7 +13,7 @@ use Polaris\Mail\MailerInterface;
 use Polaris\Repositories\MagicLinkRepository;
 use Polaris\Services\MagicLinkService;
 use Polaris\Support\Database;
-use Polaris\Support\RateLimiter;
+use Polaris\Repositories\RateLimitRepository;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
@@ -72,6 +72,16 @@ final class ApiTest extends TestCase
         }
 
         $this->assertFalse($called, 'The handler must not run with an argument nobody declared.');
+    }
+
+    public function testANoArgumentToolRejectsUndeclaredArgumentsToo(): void
+    {
+        $operation = Operation::tool('health', 'Health', [], [], static fn (): array => ['ok' => true]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('surprise');
+
+        $operation->call(['surprise' => 'value']);
     }
 
     public function testAMissingRequiredArgumentIsRejected(): void
@@ -262,6 +272,32 @@ final class ApiTest extends TestCase
         $this->assertSame($restBody, $toolBody, 'Both surfaces must return the same payload.');
     }
 
+    public function testTheMcpControllerRejectsABodyLargerThanTheConfiguredCeiling(): void
+    {
+        $mcp = new \Polaris\Api\McpController($this->registry(), [], 32);
+        $request = (new ServerRequestFactory())
+            ->createServerRequest('POST', '/api/mcp')
+            ->withBody((new \Slim\Psr7\Factory\StreamFactory())->createStream(str_repeat('x', 33)));
+
+        $response = $mcp->handle($request, new \Slim\Psr7\Response());
+
+        $this->assertSame(413, $response->getStatusCode());
+        $this->assertStringContainsString('Request too large', (string) $response->getBody());
+    }
+
+    public function testTheMcpControllerTrustsAnOversizedContentLengthHeader(): void
+    {
+        $mcp = new \Polaris\Api\McpController($this->registry(), [], 32);
+        $request = (new ServerRequestFactory())
+            ->createServerRequest('POST', '/api/mcp')
+            ->withHeader('Content-Length', '9999')
+            ->withBody((new \Slim\Psr7\Factory\StreamFactory())->createStream('{"jsonrpc":"2.0"}'));
+
+        $response = $mcp->handle($request, new \Slim\Psr7\Response());
+
+        $this->assertSame(413, $response->getStatusCode());
+    }
+
     public function testTheMcpControllerKeepsTheResponseItWasGiven(): void
     {
         $mcp = new \Polaris\Api\McpController($this->registry());
@@ -341,7 +377,7 @@ final class ApiTest extends TestCase
         $database = $this->database();
         $middleware = new \Polaris\Api\ApiKeyMiddleware(
             ['api' => ['enabled' => true, 'api_key' => str_repeat('k', 32)]],
-            new RateLimiter($database),
+            new RateLimitRepository($database),
             'rest',
         );
 
@@ -365,7 +401,7 @@ final class ApiTest extends TestCase
         $key = str_repeat('k', 32);
         $middleware = new \Polaris\Api\ApiKeyMiddleware(
             ['api' => ['enabled' => true, 'api_key' => $key]],
-            new RateLimiter($database),
+            new RateLimitRepository($database),
             'rest',
         );
 

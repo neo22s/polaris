@@ -4,7 +4,11 @@ All notable changes to Polaris are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-11-19
+
+Audit pass: the kernel keeps its shape, and every claim in the README now has
+code behind it. Two new guards ship with it — the installer checksum is tested
+against the built archive, and `uploads/.htaccess` is part of every release.
 
 ### Security
 
@@ -30,6 +34,20 @@ All notable changes to Polaris are recorded here. The format follows
   lists every operation and argument.
 - **OpenAPI marks reads as key-protected too**, matching how `RestRouter::mount`
   applies the middleware to the whole group.
+- **CSRF exemption now verifies the API key.** Merely sending an `X-API-KEY`
+  header no longer disables CSRF; the value must match the configured key.
+- **MCP bodies are size-limited** by `mcp.max_bytes` (4 MB default), read one byte
+  past the ceiling and answered with 413 before `json_decode`.
+- **No-argument tools reject undeclared arguments** via MCP, as the documented
+  contract always promised.
+- **Deploy tokens travel in POST bodies**, and the one-off migration runner
+  deletes itself before checking the token, so neither URLs nor access logs
+  carry the secret.
+- **`.env` is created with `0600`**, not group-readable `0640`.
+- **`uploads/.htaccess` ships in releases** and `ImageService` validates image
+  bytes and re-encodes them into a new file with a random name.
+- **Translation parameters are literal**, so `$1` in a user name is no longer
+  interpreted as a regex backreference.
 
 ### Changed
 
@@ -39,6 +57,32 @@ All notable changes to Polaris are recorded here. The format follows
   which keeps it inside the middleware stack.
 - **REST and MCP share one API-key middleware.** The MCP mode also enforces
   `POST` and rate-limits per IP.
+- **The version has one updater.** `bin/version.php` now also rewrites the
+  installer constant; OpenAPI, MCP and the docs read `Kernel::VERSION` instead of
+  carrying their own `1.0.0`.
+- **Shared helpers replace duplication.** One `DotenvParser`, one `Clock`, one
+  `JsonResponse`, one `TrustedProxy` and `SafeFilesystem` replace several copies
+  of the same logic. `RateLimiter` moved to `Repositories`, session rotation and
+  admin promotion moved out of `AuthService`, and the dead `View/helpers.php`
+  is gone.
+- **`bin/cron.php` now exists**, matching the install and recipe docs. It prunes
+  the cache and runs tasks registered in `config/cron.php`.
+- **`AuthDependencies` gives AuthService a one-argument entry point.**
+  `AuthService::withDependencies()` is preferred; the old nine-argument
+  constructor still works.
+- **Scaffolds live in `resources/stubs/`.** The generator renders reviewable
+  files instead of carrying six long heredocs.
+- **The release archive was rebuilt and its checksum repinned.** The new zip
+  includes `uploads/.htaccess`, `bin/cron.php`, `ImageService` and `Clock`.
+
+### Fixed
+
+- **`bin/version.php bump` validates the current version.** A precedence bug made
+  the SemVer check always pass.
+- **The docs no longer point at a non-existent cron runner** or claim that
+  `install.php` is absent from releases.
+- **`Config::get()` keys in the starter admin panel no longer include the
+  `settings.` prefix**, which made both values fall back to their defaults.
 
 ## [0.1.0] - 2026-11-18
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Polaris\Deploy;
 
+use Polaris\Support\Clock;
 use PDO;
 use Polaris\Support\Database;
 use RuntimeException;
@@ -80,7 +81,7 @@ final class MigrationRunner
                 $statement = $pdo->prepare(
                     'INSERT INTO _migrations (migration_name, applied_at) VALUES (:name, :at)',
                 );
-                $statement->execute(['name' => $name, 'at' => date('Y-m-d H:i:s')]);
+                $statement->execute(['name' => $name, 'at' => Clock::now()]);
 
                 $ran[] = $name;
             }

@@ -188,6 +188,9 @@ final class AcumbamailService
         ]);
 
         try {
+            // The @ is deliberate: a failed network call is expected to be
+            // handled and logged just below, not to emit a PHP warning into a
+            // page that is already being rendered.
             $raw = @file_get_contents(self::ENDPOINT . $method . '/', false, $context);
         } catch (\Throwable $e) {
             error_log(sprintf('[Polaris] Acumbamail %s request failed: %s', $method, $e->getMessage()));

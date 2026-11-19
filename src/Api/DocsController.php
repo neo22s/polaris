@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Polaris\Api;
 
+use Polaris\Http\Kernel;
+use Polaris\Support\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -26,7 +28,7 @@ final class DocsController
         private Registry $registry,
         private string $title,
         private string $serverUrl,
-        private string $version = '1.0.0',
+        private string $version = Kernel::VERSION,
         private bool $enabled = false,
     ) {
     }
@@ -77,11 +79,7 @@ final class DocsController
 
     private function notFound(ResponseInterface $response): ResponseInterface
     {
-        $response->getBody()->write((string) json_encode([
-            'error' => ['status' => 404, 'message' => 'Not found'],
-        ]));
-
-        return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+        return JsonResponse::error($response, 404, 'Not found');
     }
 
     /**

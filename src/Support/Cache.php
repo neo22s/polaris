@@ -49,21 +49,23 @@ final class Cache
             return ['found' => false, 'value' => null];
         }
 
-        $contents = @file_get_contents($file);
+        $contents = SafeFilesystem::read($file);
         if ($contents === false || $contents === '') {
             return ['found' => false, 'value' => null];
         }
 
         // Only ever deserialize arrays/scalars: never allow object instantiation.
+        // The @ is deliberate: a truncated cache file is an expected corrupt
+        // entry, not an error worth a warning — it is deleted just below.
         $payload = @unserialize($contents, ['allowed_classes' => false]);
         if (!is_array($payload) || !array_key_exists('expires', $payload) || !array_key_exists('value', $payload)) {
-            @unlink($file);
+            SafeFilesystem::delete($file);
 
             return ['found' => false, 'value' => null];
         }
 
         if ($payload['expires'] !== 0 && $payload['expires'] < time()) {
-            @unlink($file);
+            SafeFilesystem::delete($file);
 
             return ['found' => false, 'value' => null];
         }
@@ -95,10 +97,10 @@ final class Cache
         $file = $this->path($key);
         $tmp = $file . '.' . bin2hex(random_bytes(4)) . '.tmp';
 
-        if (@file_put_contents($tmp, $payload, LOCK_EX) !== false) {
-            @rename($tmp, $file);
+        if (SafeFilesystem::write($tmp, $payload, LOCK_EX) !== false) {
+            SafeFilesystem::move($tmp, $file);
         } else {
-            @unlink($tmp);
+            SafeFilesystem::delete($tmp);
         }
     }
 
@@ -113,18 +115,18 @@ final class Cache
         $marker = $this->directory . '/' . self::SWEEP_MARKER;
 
         if (!is_file($marker)) {
-            @touch($marker);
+            SafeFilesystem::touch($marker);
 
             return false;
         }
 
-        $last = (int) @filemtime($marker);
+        $last = (int) SafeFilesystem::modifiedAt($marker);
 
         if ($last + self::SWEEP_INTERVAL > time()) {
             return false;
         }
 
-        @touch($marker);
+        SafeFilesystem::touch($marker);
 
         return true;
     }
@@ -150,7 +152,7 @@ final class Cache
 
     public function forget(string $key): void
     {
-        @unlink($this->path($key));
+        SafeFilesystem::delete($this->path($key));
     }
 
     /**
@@ -243,7 +245,7 @@ final class Cache
                 continue;
             }
 
-            $mtime = @filemtime($file);
+            $mtime = SafeFilesystem::modifiedAt($file);
             if ($mtime === false) {
                 continue;
             }
@@ -252,7 +254,7 @@ final class Cache
 
             // A put() that died before the rename leaves a temporary behind.
             if (str_contains($name, '.tmp')) {
-                if ($mtime < $tmpCutoff && @unlink($file)) {
+                if ($mtime < $tmpCutoff && SafeFilesystem::delete($file)) {
                     $deleted++;
                 }
 
@@ -267,12 +269,12 @@ final class Cache
                 continue;
             }
 
-            $payload = @unserialize((string) @file_get_contents($file), ['allowed_classes' => false]);
+            $payload = @unserialize((string) SafeFilesystem::read($file), ['allowed_classes' => false]);
             if (is_array($payload) && ($payload['expires'] ?? null) === 0) {
                 continue;
             }
 
-            if (@unlink($file)) {
+            if (SafeFilesystem::delete($file)) {
                 $deleted++;
             }
         }
@@ -288,7 +290,7 @@ final class Cache
     private function ensureDirectory(): void
     {
         if (!is_dir($this->directory)) {
-            @mkdir($this->directory, 0775, true);
+            SafeFilesystem::makeDirectory($this->directory);
         }
     }
 }

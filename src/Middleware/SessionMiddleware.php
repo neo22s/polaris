@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Polaris\Middleware;
 
 use Polaris\Support\FileSessionHandler;
+use Polaris\Support\Session;
+use Polaris\Support\TrustedProxy;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -29,6 +31,9 @@ final class SessionMiddleware implements MiddlewareInterface
     /** Whether the response must carry a renewed session cookie. */
     private bool $renewCookie = false;
 
+    /** Whether the cookie needs the Secure flag for this request. */
+    private bool $secure = false;
+
     /** @param array<int,string> $trustedProxies */
     public function __construct(
         private string $name,
@@ -42,7 +47,7 @@ final class SessionMiddleware implements MiddlewareInterface
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         if (session_status() !== PHP_SESSION_ACTIVE) {
-            $this->start();
+            $this->start($request);
         }
 
         $response = $handler->handle($request);
@@ -57,7 +62,7 @@ final class SessionMiddleware implements MiddlewareInterface
         return $response;
     }
 
-    private function start(): void
+    private function start(ServerRequestInterface $request): void
     {
         session_name($this->name);
 
@@ -67,13 +72,16 @@ final class SessionMiddleware implements MiddlewareInterface
         ini_set('session.gc_maxlifetime', (string) max(1, $this->lifetime));
         ini_set('session.lazy_write', '0');
 
-        $secure = $this->isSecure();
+        // The request is the single source of truth here, as it is for HSTS.
+        // Reading $_SERVER as well gave the two middlewares two answers to the
+        // same question on servers where the PSR-7 params are normalised.
+        $this->secure = (new TrustedProxy($this->trustedProxies))->isSecure($request);
 
         session_set_cookie_params([
             'lifetime' => $this->lifetime,
             'path' => '/',
             'httponly' => true,
-            'secure' => $secure,
+            'secure' => $this->secure,
             'samesite' => 'Lax',
         ]);
 
@@ -82,7 +90,7 @@ final class SessionMiddleware implements MiddlewareInterface
         $this->store = new FileSessionHandler($this->savePath, $this->lifetime);
         session_set_save_handler($this->store, true);
 
-        $resuming = isset($_COOKIE[$this->name]);
+        $resuming = isset($request->getCookieParams()[$this->name]);
 
         session_start();
 
@@ -108,40 +116,11 @@ final class SessionMiddleware implements MiddlewareInterface
             gmdate('D, d M Y H:i:s \G\M\T', time() + $this->lifetime),
         );
 
-        if ($this->isSecure()) {
+        if ($this->secure) {
             $cookie .= '; Secure';
         }
 
         return $cookie;
-    }
-
-    private function isSecure(): bool
-    {
-        if (($_SERVER['HTTPS'] ?? '') === 'on') {
-            return true;
-        }
-
-        $forwarded = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '';
-
-        if ($forwarded === 'https' && $this->proxyIsTrusted()) {
-            return true;
-        }
-
-        return false;
-    }
-
-    private function proxyIsTrusted(): bool
-    {
-        // Without an explicit list of trusted proxies, the header can be forged
-        // by the client. A shared-hosting site that is not behind a proxy must
-        // not treat this header as secure.
-        if ($this->trustedProxies === []) {
-            return false;
-        }
-
-        $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-
-        return in_array($remoteAddr, $this->trustedProxies, true);
     }
 
     /**
@@ -155,7 +134,7 @@ final class SessionMiddleware implements MiddlewareInterface
             return false;
         }
 
-        $rotatedAt = $_SESSION[self::ROTATED_AT] ?? null;
+        $rotatedAt = Session::get(self::ROTATED_AT);
 
         if (is_int($rotatedAt) && $rotatedAt + $this->regenerateMinutes * 60 >= time()) {
             return false;
@@ -171,7 +150,7 @@ final class SessionMiddleware implements MiddlewareInterface
         // when a custom save handler is registered, so drop it explicitly.
         $this->store?->destroy($oldId);
 
-        $_SESSION[self::ROTATED_AT] = time();
+        Session::set(self::ROTATED_AT, time());
 
         return true;
     }

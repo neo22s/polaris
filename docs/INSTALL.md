@@ -74,16 +74,18 @@ run — delete the file by hand when you can.
   the installer into an open proxy that fetches any URL an attacker names.
 - The archive is checked for absolute paths, `..`, backslashes and symlinks
   before extraction.
-- `.env` is written with `0640`.
+- `.env` is written with `0600`: on shared hosting the group id is often shared
+  with other customers, so group-readable credentials are not acceptable.
 - The installer never reads the site's `config/settings.php`: it uses the
   connection details it just wrote and nothing else.
-- `install.php` is not part of any release, so a deployed site does not ship it.
+- The installer deletes itself after a successful run; `var/installed` blocks a
+  second run even when the host forbids that deletion.
 
 ## After installing
 
 - Set `APP_DEBUG=false` (the installer already does).
-- Point the cron at `bin/cron.php` once a day if the site uses reminders or
-  cleanup.
+- Point the cron at `php bin/cron.php` once a day: it prunes the cache and runs
+  any tasks registered in `config/cron.php` (see `docs/RECIPES.md`).
 - Create `.deploy.env` if you want to deploy over FTP from then on.
 - Add the languages you ship in `.env` (`LOCALES=en,es`) and read
   `docs/ADDING-A-LANGUAGE.md`.

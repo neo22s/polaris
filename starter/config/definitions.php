@@ -23,7 +23,8 @@ use Polaris\Mail\Mailer;
 use Polaris\Mail\MailerInterface;
 use Polaris\Repositories\UserRepository;
 use Polaris\Services\NewsletterSyncService;
-use Polaris\Support\RateLimiter;
+use Polaris\Repositories\RateLimitRepository;
+use Polaris\Http\Kernel;
 use Polaris\View\View;
 use Psr\Container\ContainerInterface;
 use Twig\Environment;
@@ -51,12 +52,12 @@ return [
     // API surfaces. Two keys: a REST key must not reach the tool surface.
     ApiKeyMiddleware::class => static fn (ContainerInterface $c): ApiKeyMiddleware => new ApiKeyMiddleware(
         $c->get('settings'),
-        $c->get(RateLimiter::class),
+        $c->get(RateLimitRepository::class),
         'rest',
     ),
     'polaris.mcp.key' => static fn (ContainerInterface $c): ApiKeyMiddleware => new ApiKeyMiddleware(
         $c->get('settings'),
-        $c->get(RateLimiter::class),
+        $c->get(RateLimitRepository::class),
         'mcp',
     ),
 
@@ -64,15 +65,16 @@ return [
         $c->get(Registry::class),
         [
             'name' => (string) $c->get('settings')['app_name'] . ' MCP',
-            'version' => '1.0.0',
+            'version' => Kernel::VERSION,
         ],
+        (int) ($c->get('settings')['mcp']['max_bytes'] ?? 4 * 1024 * 1024),
     ),
 
     DocsController::class => static fn (ContainerInterface $c): DocsController => new DocsController(
         $c->get(Registry::class),
         (string) $c->get('settings')['app_name'],
         (string) $c->get('settings')['url'],
-        '1.0.0',
+        Kernel::VERSION,
         (bool) ($c->get('settings')['api']['docs'] ?? false),
     ),
 

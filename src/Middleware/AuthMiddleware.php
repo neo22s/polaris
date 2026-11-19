@@ -19,8 +19,11 @@ use Slim\Psr7\Factory\ResponseFactory;
  */
 final class AuthMiddleware implements MiddlewareInterface
 {
-    public function __construct(private AuthService $auth)
-    {
+    public function __construct(
+        private AuthService $auth,
+        private Flash $flash,
+        private ResponseFactory $responses,
+    ) {
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -28,9 +31,9 @@ final class AuthMiddleware implements MiddlewareInterface
         if (!$this->auth->check()) {
             // Remember where they wanted to go so we can return after login.
             Session::set('intended_url', $request->getUri()->getPath());
-            (new Flash())->info(Translator::t('flash.login_required'));
+            $this->flash->info(Translator::t('flash.login_required'));
 
-            return (new ResponseFactory())
+            return $this->responses
                 ->createResponse(302)
                 ->withHeader('Location', '/login');
         }

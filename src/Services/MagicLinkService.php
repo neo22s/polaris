@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Polaris\Services;
 
+use Polaris\Support\Clock;
 use Polaris\Repositories\MagicLinkRepository;
 use Polaris\Support\Url;
 
@@ -40,7 +41,7 @@ final class MagicLinkService
         }
 
         $token = bin2hex(random_bytes(32));
-        $expiresAt = date('Y-m-d H:i:s', time() + max(60, $ttlSeconds));
+        $expiresAt = Clock::at(time() + max(60, $ttlSeconds));
 
         $this->links->create((int) $user['id'], hash('sha256', $token), $expiresAt, $ip, $userAgent);
 

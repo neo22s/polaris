@@ -6,7 +6,7 @@ namespace App\Controllers;
 
 use Polaris\Auth\AuthService;
 use Polaris\Support\Flash;
-use Polaris\Support\RateLimiter;
+use Polaris\Repositories\RateLimitRepository;
 use Polaris\Support\Translator;
 use Polaris\Support\Url;
 use Polaris\Support\Validator;
@@ -27,7 +27,7 @@ final class AuthController
         private View $view,
         private AuthService $auth,
         private Flash $flash,
-        private RateLimiter $limiter,
+        private RateLimitRepository $limiter,
     ) {
     }
 

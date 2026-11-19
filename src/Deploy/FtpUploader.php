@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Polaris\Deploy;
 
+use Polaris\Support\SafeFilesystem;
 use RuntimeException;
 
 /**
@@ -33,8 +34,8 @@ final class FtpUploader
     public function connect(): void
     {
         $connection = $this->config['ssl']
-            ? @ftp_ssl_connect($this->config['host'], $this->config['port'], 30)
-            : @ftp_connect($this->config['host'], $this->config['port'], 30);
+            ? ftp_ssl_connect($this->config['host'], $this->config['port'], 30)
+            : ftp_connect($this->config['host'], $this->config['port'], 30);
 
         if ($connection === false) {
             throw new RuntimeException(sprintf(
@@ -44,11 +45,16 @@ final class FtpUploader
             ));
         }
 
-        if (!@ftp_login($connection, $this->config['user'], $this->config['pass'])) {
+        if (!ftp_login($connection, $this->config['user'], $this->config['pass'])) {
             throw new RuntimeException('FTP login failed for ' . $this->config['user']);
         }
 
-        ftp_pasv($connection, $this->config['passive']);
+        // A passive mode that silently fails to apply turns every later upload
+        // into a confusing timeout, so fail here with the actual cause.
+        if (!ftp_pasv($connection, $this->config['passive'])) {
+            throw new RuntimeException('Could not set FTP passive mode.');
+        }
+
         ftp_set_option($connection, FTP_TIMEOUT_SEC, 90);
 
         $this->connection = $connection;
@@ -58,7 +64,7 @@ final class FtpUploader
     public function disconnect(): void
     {
         if ($this->connection !== null) {
-            @ftp_close($this->connection);
+            ftp_close($this->connection);
             $this->connection = null;
         }
     }
@@ -84,7 +90,7 @@ final class FtpUploader
 
             $this->ensureDirectory(dirname($remote));
 
-            if (@ftp_put($connection, $remote, $local, FTP_BINARY)) {
+            if (ftp_put($connection, $remote, $local, FTP_BINARY)) {
                 $uploaded++;
             } else {
                 $failed[] = $relative;
@@ -106,7 +112,7 @@ final class FtpUploader
         foreach ($paths as $relative) {
             $remote = $this->remoteRoot . '/' . ltrim($relative, '/');
 
-            if (!@ftp_delete($connection, $remote)) {
+            if (!ftp_delete($connection, $remote)) {
                 $failed[] = $relative;
             }
         }
@@ -136,18 +142,21 @@ final class FtpUploader
 
         file_put_contents($temporary, RemoteRunner::build($migrations, $token));
 
-        if (!@ftp_put($connection, $this->remoteRoot . '/' . $name, $temporary, FTP_BINARY)) {
-            @unlink($temporary);
+        if (!ftp_put($connection, $this->remoteRoot . '/' . $name, $temporary, FTP_BINARY)) {
+            SafeFilesystem::delete($temporary);
 
             return ['ok' => false, 'message' => 'Could not upload the migration runner.'];
         }
 
-        @unlink($temporary);
+        SafeFilesystem::delete($temporary);
 
-        $url = rtrim($siteUrl, '/') . '/' . $name . '?t=' . rawurlencode($token);
+        // The token goes in the POST body, never in the URL: access logs on the
+        // server and on every proxy between here and there are readable by
+        // people who should not be able to write to the database.
+        $url = rtrim($siteUrl, '/') . '/' . $name;
 
         try {
-            $body = $this->fetch($url);
+            $body = $this->fetch($url, $token);
             $ok = str_starts_with($body, 'OK');
             $message = $ok
                 ? (trim($body) === 'OK 0' ? 'No new migrations.' : 'Applied ' . substr(trim($body), 3) . ' migration(s).')
@@ -159,7 +168,7 @@ final class FtpUploader
 
         // The runner deletes itself, but the copy is removed from here too: if
         // that failed, a script carrying the deploy token would stay online.
-        $removed = @ftp_delete($connection, $this->remoteRoot . '/' . $name);
+        $removed = ftp_delete($connection, $this->remoteRoot . '/' . $name);
 
         if (!$removed) {
             $message .= ' Delete ' . $name . ' from the server manually: it holds the deploy token.';
@@ -211,8 +220,8 @@ final class FtpUploader
         foreach (array_unique($candidates) as $candidate) {
             $candidate = '/' . trim($candidate, '/');
 
-            if (@ftp_chdir($connection, $candidate)) {
-                @ftp_chdir($connection, '/');
+            if (ftp_chdir($connection, $candidate)) {
+                ftp_chdir($connection, '/');
 
                 return $candidate;
             }
@@ -242,7 +251,7 @@ final class FtpUploader
     {
         $matches = [];
 
-        foreach (@ftp_nlist($connection, '/domains') ?: [] as $domain) {
+        foreach (ftp_nlist($connection, '/domains') ?: [] as $domain) {
             if (!is_string($domain)) {
                 continue;
             }
@@ -254,7 +263,7 @@ final class FtpUploader
             }
 
             $candidate = '/domains/' . $base . '/public_html';
-            $listing = @ftp_nlist($connection, $candidate);
+            $listing = ftp_nlist($connection, $candidate);
 
             if (!is_array($listing)) {
                 continue;
@@ -284,8 +293,8 @@ final class FtpUploader
             return;
         }
 
-        if (@ftp_chdir($connection, $directory)) {
-            @ftp_chdir($connection, '/');
+        if (ftp_chdir($connection, $directory)) {
+            ftp_chdir($connection, '/');
 
             return;
         }
@@ -296,10 +305,10 @@ final class FtpUploader
             $this->ensureDirectory($parent);
         }
 
-        @ftp_mkdir($connection, $directory);
+        ftp_mkdir($connection, $directory);
     }
 
-    private function fetch(string $url): string
+    private function fetch(string $url, string $token): string
     {
         if (!function_exists('curl_init')) {
             throw new RuntimeException('cURL is required to call the migration runner securely.');
@@ -308,10 +317,13 @@ final class FtpUploader
         $handle = curl_init($url);
         curl_setopt_array($handle, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS => 3,
+            // A redirect must not carry the deploy token to another host.
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query(['t' => $token]),
             CURLOPT_TIMEOUT => 120,
             CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_USERAGENT => 'Polaris-Deploy',
         ]);
         $body = curl_exec($handle);

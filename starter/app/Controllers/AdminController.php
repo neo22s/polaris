@@ -44,8 +44,8 @@ final class AdminController
             'health' => [
                 'php' => PHP_VERSION,
                 'kernel' => Kernel::VERSION,
-                'site' => (string) Config::get('settings.site_version', '0.0.0'),
-                'debug' => (bool) Config::get('settings.debug', false),
+                'site' => (string) Config::get('site_version', '0.0.0'),
+                'debug' => (bool) Config::get('debug', false),
                 'cache' => $this->system->cacheStats(),
                 'cron' => $this->system->read(),
                 'seconds_since_cron' => $this->system->secondsSinceLastRun(),

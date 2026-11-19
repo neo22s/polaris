@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Polaris\Auth;
 
+use Polaris\Support\Clock;
 use Polaris\Repositories\MagicLinkRepository;
 use Polaris\Mail\MailerInterface;
 use Polaris\Services\MagicLinkService;
 use Polaris\Support\Database;
-use Polaris\Support\RateLimiter;
+use Polaris\Repositories\RateLimitRepository;
 use Polaris\Support\Session;
 use Polaris\Support\Translator;
 use RuntimeException;
@@ -37,6 +38,10 @@ class AuthService
 
     private bool $userResolved = false;
 
+    private SessionManager $sessions;
+
+    private AdminPromotion $promotion;
+
     /** @param array<string,mixed> $settings */
     public function __construct(
         private UserStore $users,
@@ -46,9 +51,34 @@ class AuthService
         private SubscriberSync $newsletter,
         private ProfileProvisioner $provisioner,
         private Database $db,
-        private RateLimiter $limiter,
+        private RateLimitRepository $limiter,
         private array $settings,
+        ?SessionManager $sessions = null,
     ) {
+        // Both are stateless rules derived from dependencies this class already
+        // has. Keeping them injectable lets a test supply its own, while sites
+        // that only call AuthService keep the same constructor they always had.
+        $this->sessions = $sessions ?? new SessionManager();
+        $this->promotion = new AdminPromotion($users, (array) ($settings['admin_emails'] ?? []));
+    }
+
+    /**
+     * Preferred entry point for new wiring: one argument instead of nine
+     * positional collaborators that are easy to swap by mistake.
+     */
+    public static function withDependencies(AuthDependencies $dependencies): self
+    {
+        return new self(
+            $dependencies->users,
+            $dependencies->magicLinks,
+            $dependencies->linkService,
+            $dependencies->mail,
+            $dependencies->newsletter,
+            $dependencies->provisioner,
+            $dependencies->db,
+            $dependencies->limiter,
+            $dependencies->settings,
+        );
     }
 
     /**
@@ -70,8 +100,8 @@ class AuthService
                 'email' => strtolower(trim($email)),
                 'role' => $role,
                 'status' => 'active',
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'created_at' => Clock::now(),
+                'updated_at' => Clock::now(),
             ], $attributes);
 
             $userId = $this->users->create($row);
@@ -210,18 +240,7 @@ class AuthService
      */
     private function regenerateSession(): void
     {
-        $oldId = session_id();
-
-        if (!session_regenerate_id(true)) {
-            return;
-        }
-
-        if (is_string($oldId) && $oldId !== '') {
-            $file = $this->sessionDirectory() . '/sess_' . $oldId;
-            if (is_file($file)) {
-                @unlink($file);
-            }
-        }
+        $this->sessions->regenerate($this->sessionDirectory());
     }
 
     private function sessionDirectory(): string
@@ -381,9 +400,7 @@ class AuthService
 
     public function shouldBeAdmin(string $email): bool
     {
-        $allow = array_map('strtolower', (array) ($this->settings['admin_emails'] ?? []));
-
-        return in_array(strtolower($email), $allow, true);
+        return $this->promotion->shouldBeAdmin($email);
     }
 
     /**
@@ -392,12 +409,7 @@ class AuthService
      */
     public function maybePromoteAdmin(array $user): array
     {
-        if ($user['role'] !== 'admin' && $this->shouldBeAdmin((string) ($user['email'] ?? ''))) {
-            $this->users->promote((int) $user['id']);
-            $user['role'] = 'admin';
-        }
-
-        return $user;
+        return $this->promotion->maybePromote($user);
     }
 
     /** @return array<string,mixed>|null */

@@ -19,6 +19,14 @@ use Slim\Psr7\Factory\ResponseFactory;
  */
 final class CsrfMiddleware implements MiddlewareInterface
 {
+    /** @param array<string,mixed> $settings */
+    public function __construct(
+        private array $settings,
+        private Flash $flash,
+        private ResponseFactory $responses,
+    ) {
+    }
+
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         // An API request authenticates with a key in a header, never with a
@@ -28,10 +36,9 @@ final class CsrfMiddleware implements MiddlewareInterface
         //
         // This is a header check, not a path check, on purpose: a new API route
         // is exempt the moment it uses the key, without anyone remembering to
-        // add its prefix here.
-        if ($request->getHeaderLine('X-API-KEY') !== ''
-            || $request->getHeaderLine('X-MCP-API-KEY') !== ''
-        ) {
+        // add its prefix here. The value must still be *valid*, though: a proxy
+        // that injects an arbitrary header must not switch CSRF off globally.
+        if ($this->hasValidApiKey($request)) {
             return $handler->handle($request);
         }
 
@@ -43,7 +50,7 @@ final class CsrfMiddleware implements MiddlewareInterface
             $token ??= $request->getHeaderLine('X-CSRF-Token');
 
             if (!Csrf::validate(is_string($token) ? $token : null)) {
-                (new Flash())->error(Translator::t('flash.session_expired'));
+                $this->flash->error(Translator::t('flash.session_expired'));
 
                 // Send the visitor back where they came from with a message.
                 // The status has to stay a redirect: browsers only follow a
@@ -52,12 +59,40 @@ final class CsrfMiddleware implements MiddlewareInterface
                 $target = $referer !== '' ? parse_url($referer, PHP_URL_PATH) : '/';
                 $target = Url::safePath($target) ?? '/';
 
-                $response = (new ResponseFactory())->createResponse(302);
+                $response = $this->responses->createResponse(302);
 
                 return $response->withHeader('Location', $target);
             }
         }
 
         return $handler->handle($request);
+    }
+
+    /**
+     * A key is a shared secret, so a header carrying the right one proves the
+     * caller is not a browser being tricked. The same length rule as
+     * ApiKeyMiddleware applies: a short placeholder key cannot authenticate,
+     * so it must not disable CSRF either.
+     */
+    private function hasValidApiKey(ServerRequestInterface $request): bool
+    {
+        $keys = [
+            'X-API-KEY' => $this->settings['api']['api_key'] ?? '',
+            'X-MCP-API-KEY' => $this->settings['mcp']['api_key'] ?? '',
+        ];
+
+        foreach ($keys as $header => $expected) {
+            $provided = $request->getHeaderLine($header);
+
+            if ($provided === '' || !is_string($expected) || strlen($expected) < 32) {
+                continue;
+            }
+
+            if (hash_equals($expected, $provided)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

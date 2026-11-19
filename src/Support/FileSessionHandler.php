@@ -50,13 +50,16 @@ final class FileSessionHandler implements SessionHandlerInterface
         }
 
         // Expired by our own clock, not by the host's cron.
-        if ($this->lifetime > 0 && filemtime($file) + $this->lifetime < time()) {
-            @unlink($file);
+        if ($this->lifetime > 0 && (int) SafeFilesystem::modifiedAt($file) + $this->lifetime < time()) {
+            SafeFilesystem::delete($file);
 
             return '';
         }
 
-        // Shared locking, so a reader never sees a half written session.
+        // Shared locking, so a reader never sees a half written session. The
+        // @ on the stream calls is deliberate: a file can vanish between the
+        // is_file() above and fopen(), and locking is best-effort on some
+        // network filesystems. Every one of these results is already checked.
         $handle = @fopen($file, 'rb');
 
         if ($handle === false) {
@@ -85,21 +88,21 @@ final class FileSessionHandler implements SessionHandlerInterface
 
         // Write to a temporary file and rename it into place: a reader either
         // sees the previous session or the new one, never a partial write.
-        if (@file_put_contents($tmp, $data, LOCK_EX) === false) {
-            @unlink($tmp);
+        if (SafeFilesystem::write($tmp, $data, LOCK_EX) === false) {
+            SafeFilesystem::delete($tmp);
 
             return false;
         }
 
-        @chmod($tmp, 0600);
+        SafeFilesystem::chmod($tmp, 0600);
 
-        if (!@rename($tmp, $file)) {
-            @unlink($tmp);
+        if (!SafeFilesystem::move($tmp, $file)) {
+            SafeFilesystem::delete($tmp);
 
             return false;
         }
 
-        @chmod($file, 0600);
+        SafeFilesystem::chmod($file, 0600);
 
         return true;
     }
@@ -112,7 +115,7 @@ final class FileSessionHandler implements SessionHandlerInterface
 
         $file = $this->path($id);
 
-        return !is_file($file) || @unlink($file);
+        return !is_file($file) || SafeFilesystem::delete($file);
     }
 
     /**
@@ -126,7 +129,7 @@ final class FileSessionHandler implements SessionHandlerInterface
         $deleted = 0;
 
         foreach (glob($this->directory . '/' . self::PREFIX . '*') ?: [] as $file) {
-            if (is_file($file) && @filemtime($file) < $cutoff && @unlink($file)) {
+            if (is_file($file) && SafeFilesystem::modifiedAt($file) < $cutoff && SafeFilesystem::delete($file)) {
                 $deleted++;
             }
         }
@@ -144,7 +147,7 @@ final class FileSessionHandler implements SessionHandlerInterface
         $deleted = 0;
 
         foreach (glob($this->directory . '/' . self::PREFIX . '*') ?: [] as $file) {
-            if (is_file($file) && @unlink($file)) {
+            if (is_file($file) && SafeFilesystem::delete($file)) {
                 $deleted++;
             }
         }
@@ -172,7 +175,7 @@ final class FileSessionHandler implements SessionHandlerInterface
 
         // The session files hold the signed-in identity and the CSRF token,
         // so the directory is only readable by the web server user.
-        if (!@mkdir($this->directory, 0700, true) && !is_dir($this->directory)) {
+        if (!SafeFilesystem::makeDirectory($this->directory, 0700)) {
             return false;
         }
 
@@ -186,10 +189,10 @@ final class FileSessionHandler implements SessionHandlerInterface
      */
     private function restrictDirectory(): void
     {
-        $mode = @fileperms($this->directory);
+        $mode = SafeFilesystem::permissions($this->directory);
 
         if ($mode !== false && ($mode & 0777) !== 0700) {
-            @chmod($this->directory, 0700);
+            SafeFilesystem::chmod($this->directory, 0700);
         }
     }
 }

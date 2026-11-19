@@ -90,6 +90,7 @@ The kernel is designed to be extended, not modified:
 | Extra Twig globals | implement `Polaris\View\ViewGlobalsProvider` |
 | Writable admin settings | declare `settings.writable_settings` rules |
 | Registration rules | extend `Polaris\Auth\AuthService`, use `RegistrationValidator` |
+| Image uploads | inject `Polaris\Services\ImageService`; bind `Polaris\Support\UploadCheck` for tests |
 | A new REST/MCP operation | add an `Operation` to a group (`docs/API.md`) |
 
 ## Data
@@ -166,8 +167,12 @@ dev packages), a `MANIFEST.json` with a SHA-256 per file, and a `VERSION` file.
 1. `kernel/` never imports `App\`.
 2. Every query uses bound parameters.
 3. Every state-changing route passes through CSRF, unless it authenticates with
-   an API key header (which a browser cannot send cross-origin).
-4. Every user-facing string goes through `Translator`.
-5. Templates autoescape; `|raw` is explicit and reviewed.
-6. A kernel upgrade never edits application files.
-7. `VERSION` and `Kernel::VERSION` always agree, and the changelog has an entry.
+   a **valid** API key header (which a browser cannot send cross-origin).
+4. Uploaded files never execute: `uploads/.htaccess` ships with every release
+   and `ImageService` re-encodes images before storing them.
+5. Every user-facing string goes through `Translator`.
+6. Templates autoescape; `|raw` is explicit and reviewed.
+7. A kernel upgrade never edits application files.
+8. The version is single-sourced: `bin/version.php` keeps `VERSION`,
+   `Kernel::VERSION` and the installer constant together, and the changelog has
+   an entry.

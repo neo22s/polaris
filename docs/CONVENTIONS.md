@@ -18,11 +18,17 @@ agent.
   `PascalCase` for classes.
 - 120 columns where practical. Long HTML and translation strings are exempt.
 - No `var_dump`, `print_r`, `die`, `exit` or `eval` in `src/`.
+- `composer check` runs syntax lint plus PHPUnit. Lint does **not** enforce
+  PSR-12 formatting; the conventions above are review rules, not a formatter.
 - No superglobals in classes; session state goes through `Polaris\Support\Session`.
 - `random_bytes()` or `hash()` for anything security related. Never `rand`,
   `mt_rand`, `md5` or `sha1`.
 - Log with the `[Polaris]` prefix and enough context to debug, never with tokens
   or passwords.
+- Filesystem calls that may fail go through `Polaris\Support\SafeFilesystem`.
+  It returns the same values as PHP but logs failures, so a shared-hosting
+  permission error is tolerated without being invisible. A bare `@` needs a
+  comment saying why that particular call is an expected failure.
 
 ## Comments
 

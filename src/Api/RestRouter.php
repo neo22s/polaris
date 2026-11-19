@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Polaris\Api;
 
+use Polaris\Support\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\App;
@@ -171,11 +172,6 @@ final class RestRouter
 
     private static function error(ResponseInterface $response, int $status, string $message): ResponseInterface
     {
-        $response->getBody()->write((string) json_encode(
-            ['error' => ['status' => $status, 'message' => $message]],
-            JSON_UNESCAPED_SLASHES,
-        ));
-
-        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
+        return JsonResponse::error($response, $status, $message);
     }
 }

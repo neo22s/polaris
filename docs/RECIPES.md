@@ -128,8 +128,10 @@ final class SiteGlobals implements Polaris\View\ViewGlobalsProvider
 
 ## Add a table with admin CRUD
 
-The generator is the intended path (`bin/make.php crud`). Until it lands, copy
-the shape of an existing entity:
+The generator is the intended path (`bin/make.php crud --diff` shows the plan,
+`--force` overwrites). Use it rather than copying an entity by hand: it writes
+the repository, API group, admin controller, templates and migration together.
+If you still need to see the shape it produces:
 
 - `app/Repositories/XRepository.php` — SQL only
 - `app/Services/XService.php` — validation and rules
@@ -173,8 +175,35 @@ edit it. No configuration needed: the cascade finds it first.
 
 ## Run something on a schedule
 
-`kernel/bin/cron.php` is the runner. Register tasks in the site's own cron
-script and call them in order; failures of one task must not stop the next.
+`php bin/cron.php` is the runner. Register tasks in the site's `config/cron.php`
+as a map of name → callable receiving the container:
+
+```php
+return [
+    'reminders.send_due' => static fn (ContainerInterface $c): int =>
+        $c->get(ReminderService::class)->sendDue(),
+];
+```
+
+The runner prunes the cache, then calls each task in order. A failure is logged
+and recorded in the admin health panel; one failing task does not stop the rest,
+and the process exits non-zero so the scheduler notices.
+
+## Store an uploaded image
+
+Inject `Polaris\Services\ImageService` into the controller and pass it the
+temporary file from `$_FILES` (through the request's uploaded-files bag):
+
+```php
+$image = $this->images->store($request->getUploadedFiles()['photo']->getFilePath());
+// $image['url'] is /uploads/<random>.<ext>; store $image['file'] in the database.
+```
+
+The service detects the type from the bytes, allows only JPEG/PNG/WebP, rejects
+anything else, and re-encodes the pixels into a new file with a random name.
+Never move an uploaded file into `uploads/` yourself: the directory's
+`.htaccess` stops execution, but only this service guarantees the content is an
+inert image.
 
 ## Add a database migration
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Polaris\Repositories;
 
+use Polaris\Support\Clock;
 use Polaris\Support\Database;
 
 /**
@@ -23,7 +24,7 @@ final class MagicLinkRepository
             'expires_at' => $expiresAt,
             'ip' => $ip,
             'user_agent' => $userAgent,
-            'created_at' => date('Y-m-d H:i:s'),
+            'created_at' => Clock::now(),
         ]);
     }
 
@@ -37,7 +38,7 @@ final class MagicLinkRepository
      */
     public function consume(string $tokenHash): ?array
     {
-        $now = date('Y-m-d H:i:s');
+        $now = Clock::now();
 
         $link = $this->db->selectOne(
             'SELECT * FROM magic_links
@@ -74,7 +75,7 @@ final class MagicLinkRepository
             'SELECT * FROM magic_links
              WHERE token_hash = :hash AND used_at IS NULL AND expires_at > :now
              ORDER BY id DESC LIMIT 1',
-            ['hash' => $tokenHash, 'now' => date('Y-m-d H:i:s')],
+            ['hash' => $tokenHash, 'now' => Clock::now()],
         );
     }
 
@@ -82,7 +83,7 @@ final class MagicLinkRepository
     {
         $this->db->execute(
             'UPDATE magic_links SET used_at = :now WHERE id = :id',
-            ['now' => date('Y-m-d H:i:s'), 'id' => $id],
+            ['now' => Clock::now(), 'id' => $id],
         );
     }
 
@@ -98,7 +99,7 @@ final class MagicLinkRepository
     {
         return $this->db->select(
             'SELECT * FROM magic_links WHERE used_at IS NULL AND expires_at > :now ORDER BY id DESC',
-            ['now' => date('Y-m-d H:i:s')],
+            ['now' => Clock::now()],
         );
     }
 
@@ -106,7 +107,7 @@ final class MagicLinkRepository
     {
         $this->db->execute(
             'UPDATE magic_links SET used_at = :now WHERE user_id = :user_id AND used_at IS NULL',
-            ['now' => date('Y-m-d H:i:s'), 'user_id' => $userId],
+            ['now' => Clock::now(), 'user_id' => $userId],
         );
     }
 }

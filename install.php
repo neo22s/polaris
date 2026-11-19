@@ -24,7 +24,7 @@ declare(strict_types=1);
  *   paths, backslashes and an unexpected checksum all abort the install.
  */
 
-const POLARIS_INSTALLER_VERSION = '0.1.0';
+const POLARIS_INSTALLER_VERSION = '0.2.0';
 
 /*
  * Set these before uploading.
@@ -40,13 +40,48 @@ const POLARIS_INSTALLER_VERSION = '0.1.0';
 const POLARIS_RELEASE_URL = 'https://github.com/neo22s/polaris/releases/latest/download/polaris-site.zip';
 
 /* SHA-256 of the published archive. A mismatch aborts before extraction. */
-const POLARIS_RELEASE_SHA256 = '7acd6d6f18a07cb673e6b948818d6ee0835738f06ebc7d4a5ce1b4e5f0b397a4';
+const POLARIS_RELEASE_SHA256 = 'b072929e4d439f81dcc882ec09be1633b1244ce448cf4b5e8ab314162851ecc5';
 
 /* The file that marks a site as installed. */
 const POLARIS_LOCK = 'var/installed';
 
 $root = __DIR__;
-$webRoot = rtrim(str_replace('/install.php', '', $_SERVER['SCRIPT_NAME'] ?? '/install.php'), '/');
+
+/*
+ * The installer has no autoloader, so it cannot use Clock. Keep the same SQL
+ * timestamp format here: the rows it writes are read by the kernel.
+ */
+function polaris_now(int $at = 0): string
+{
+    return date('Y-m-d H:i:s', $at === 0 ? time() : $at);
+}
+
+/* Reads and deletes tolerate failure but record it: this file has no autoloader. */
+function polaris_read(string $path): string|false
+{
+    $contents = @file_get_contents($path);
+
+    if ($contents === false) {
+        error_log('[Polaris] installer could not read ' . $path);
+    }
+
+    return $contents;
+}
+
+function polaris_delete(string $path): bool
+{
+    if (!file_exists($path)) {
+        return true;
+    }
+
+    $deleted = @unlink($path);
+
+    if ($deleted === false) {
+        error_log('[Polaris] installer could not delete ' . $path);
+    }
+
+    return $deleted;
+}
 
 /**
  * Requirements, with two levels: blocking and recommended.
@@ -100,7 +135,7 @@ function polaris_download(string $url): string
     // A local archive is a legitimate test path and does not need HTTP.
     if (str_starts_with($url, 'file://')) {
         $path = substr($url, 7);
-        $body = @file_get_contents($path);
+        $body = polaris_read($path);
 
         if ($body === false) {
             throw new RuntimeException('Could not read the local release archive: ' . $path);
@@ -134,7 +169,7 @@ function polaris_download(string $url): string
         return (string) $body;
     }
 
-    $body = @file_get_contents($url);
+    $body = polaris_read($url);
 
     if ($body === false) {
         throw new RuntimeException('Download failed. Enable the curl extension or check the URL.');
@@ -235,7 +270,9 @@ function polaris_write_env(string $root, array $values): void
         throw new RuntimeException('Could not write .env in the document root.');
     }
 
-    @chmod($root . '/.env', 0640);
+    // Some hosts forbid chmod; the installer must still finish, and a wrong
+    // permission is reported by the host rather than hiding a real failure.
+    @chmod($root . '/.env', 0600);
 }
 
 /** @return array<string,string> The form values, trimmed. */
@@ -344,8 +381,8 @@ function polaris_create_admin(string $root, array $dbConfig, string $appUrl, str
         'email' => $email,
         'role' => 'admin',
         'status' => 'active',
-        'created_at' => date('Y-m-d H:i:s'),
-        'updated_at' => date('Y-m-d H:i:s'),
+        'created_at' => polaris_now(),
+        'updated_at' => polaris_now(),
     ]);
 
     $token = bin2hex(random_bytes(32));
@@ -353,8 +390,8 @@ function polaris_create_admin(string $root, array $dbConfig, string $appUrl, str
     $db->insert('magic_links', [
         'user_id' => $userId,
         'token_hash' => hash('sha256', $token),
-        'expires_at' => date('Y-m-d H:i:s', time() + 900),
-        'created_at' => date('Y-m-d H:i:s'),
+        'expires_at' => polaris_now(time() + 900),
+        'created_at' => polaris_now(),
     ]);
 
     return rtrim($appUrl, '/') . '/auth/' . $token;
@@ -382,7 +419,7 @@ function polaris_close_installer(string $root): bool
         'installer' => POLARIS_INSTALLER_VERSION,
     ], JSON_PRETTY_PRINT));
 
-    return @unlink(__FILE__);
+    return polaris_delete(__FILE__);
 }
 
 $requirements = polaris_requirements();
@@ -485,6 +522,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['step'] ?? '') === 'install
             // Create the runtime directories a fresh checkout does not ship.
             foreach (['var/cache/twig', 'var/sessions', 'var/logs', 'uploads'] as $directory) {
                 if (!is_dir($root . '/' . $directory)) {
+                    // A host that forbids mkdir is reported by the later write;
+                    // the install itself can still complete.
                     @mkdir($root . '/' . $directory, 0775, true);
                 }
             }
@@ -500,7 +539,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['step'] ?? '') === 'install
             $errors[] = $e->getMessage();
         } finally {
             if ($temp !== null && is_file($temp)) {
-                @unlink($temp);
+                polaris_delete($temp);
             }
         }
     }

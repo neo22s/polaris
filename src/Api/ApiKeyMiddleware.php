@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Polaris\Api;
 
-use Polaris\Support\RateLimiter;
+use Polaris\Repositories\RateLimitRepository;
+use Polaris\Support\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -29,7 +30,7 @@ final class ApiKeyMiddleware implements MiddlewareInterface
     /** @param array<string,mixed> $settings */
     public function __construct(
         private array $settings,
-        private RateLimiter $limiter,
+        private RateLimitRepository $limiter,
         private string $mode = 'rest',
     ) {
     }
@@ -50,7 +51,10 @@ final class ApiKeyMiddleware implements MiddlewareInterface
         }
 
         $ip = (string) ($request->getServerParams()['REMOTE_ADDR'] ?? 'unknown');
-        [$max, $window] = (array) ($config['rate_limit'] ?? [60, 60]);
+        // Keep the fallback in step with config/defaults.php: a site with a
+        // partial settings file must not get a different limit than one with
+        // the defaults loaded.
+        [$max, $window] = (array) ($config['rate_limit'] ?? [120, 60]);
         $key = $this->mode . ':' . hash('sha256', $expected) . ':' . $ip;
 
         if (!$this->limiter->attempt($key, (int) $max, (int) $window)) {
@@ -82,24 +86,12 @@ final class ApiKeyMiddleware implements MiddlewareInterface
 
     private function error(int $code, string $message, int $status): ResponseInterface
     {
-        if ($this->mode === 'mcp') {
-            $body = json_encode([
-                'jsonrpc' => '2.0',
-                'id' => null,
-                'error' => ['code' => $code, 'message' => $message],
-            ]);
-        } else {
-            $body = json_encode([
-                'error' => ['status' => $status, 'message' => $message],
-            ]);
-        }
-
         $response = new Response($status);
-        $response->getBody()->write($body !== false ? $body : '{}');
 
-        $response = $response->withHeader('Content-Type', 'application/json');
-
-        if ($this->mode !== 'mcp') {
+        if ($this->mode === 'mcp') {
+            $response = JsonResponse::rpc($response, null, ['code' => $code, 'message' => $message], null, $status);
+        } else {
+            $response = JsonResponse::error($response, $status, $message);
             $response = $response->withHeader('WWW-Authenticate', 'ApiKey');
         }
 

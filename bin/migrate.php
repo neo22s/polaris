@@ -38,10 +38,9 @@ $overrides = is_file($siteRoot . '/config/settings.php')
 $config = Config::merge($defaults, $overrides);
 $db = new Database($config['settings']['db']);
 
-$directories = array_values(array_filter([
-    $kernelRoot . '/database/upgrades',
-    $siteRoot . '/database/upgrades',
-], 'is_dir'));
+// Reuse the same directory rules as the installer and the deploy runner, so
+// `composer migrate` sees database/sql as well as database/upgrades.
+$directories = MigrationRunner::siteDirectories($siteRoot);
 
 if (in_array('--dry-run', $argv ?? [], true)) {
     foreach (MigrationRunner::pendingFiles($db, $directories) as $name) {

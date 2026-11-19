@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Polaris\Api;
 
 use InvalidArgumentException;
+use Polaris\Http\Kernel;
 
 /**
  * The registry of every API group a site exposes.
@@ -135,11 +136,10 @@ final class Registry
     public function openApi(
         string $serverUrl,
         string $title,
-        string $version = '1.0.0',
+        string $version = Kernel::VERSION,
         bool $protectReads = true,
     ): array {
         $paths = [];
-        $schemas = [];
 
         foreach ($this->groups as $groupName => $group) {
             foreach ($group->restOperations() as $operation) {
@@ -217,25 +217,25 @@ final class Registry
                 $paths[$operation->path][strtolower((string) $operation->httpMethod)] = $operationSpec;
             }
 
-            $schemas[$groupName] = ['type' => 'object'];
         }
 
         ksort($paths);
+
+        $components = [
+            'securitySchemes' => [
+                'apiKey' => [
+                    'type' => 'apiKey',
+                    'in' => 'header',
+                    'name' => 'X-API-KEY',
+                ],
+            ],
+        ];
 
         return [
             'openapi' => '3.1.0',
             'info' => ['title' => $title, 'version' => $version],
             'servers' => [['url' => rtrim($serverUrl, '/')]],
-            'components' => [
-                'securitySchemes' => [
-                    'apiKey' => [
-                        'type' => 'apiKey',
-                        'in' => 'header',
-                        'name' => 'X-API-KEY',
-                    ],
-                ],
-                'schemas' => $schemas,
-            ],
+            'components' => $components,
             'paths' => $paths,
         ];
     }

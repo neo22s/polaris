@@ -16,14 +16,16 @@ use Slim\Psr7\Factory\ResponseFactory;
  */
 final class AdminMiddleware implements MiddlewareInterface
 {
-    public function __construct(private AuthService $auth)
-    {
+    public function __construct(
+        private AuthService $auth,
+        private ResponseFactory $responses,
+    ) {
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         if (!$this->auth->check()) {
-            return (new ResponseFactory())
+            return $this->responses
                 ->createResponse(302)
                 ->withHeader('Location', '/login');
         }

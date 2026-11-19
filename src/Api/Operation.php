@@ -147,16 +147,18 @@ final class Operation
             }
         }
 
-        if ($this->properties !== []) {
-            $unknown = array_diff(array_keys($arguments), array_keys($this->properties));
+        // Even with no declared properties the schema is an object, so any
+        // argument at all is undeclared. Guarding this with `properties !== []`
+        // let a client pass anything to a no-argument tool, which is exactly
+        // the silent drift this check exists to prevent.
+        $unknown = array_diff(array_keys($arguments), array_keys($this->properties));
 
-            if ($unknown !== []) {
-                throw new InvalidArgumentException(sprintf(
-                    'Unknown argument(s) for %s: %s',
-                    $this->name,
-                    implode(', ', $unknown),
-                ));
-            }
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(sprintf(
+                'Unknown argument(s) for %s: %s',
+                $this->name,
+                implode(', ', $unknown),
+            ));
         }
 
         return ($this->handler)($arguments);

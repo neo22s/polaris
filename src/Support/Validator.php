@@ -69,7 +69,8 @@ final class Validator
             'url' => filter_var((string) $value, FILTER_VALIDATE_URL) === false
                 ? Translator::t('validation.url', ['field' => $label]) : null,
             'numeric' => !is_numeric($value) ? Translator::t('validation.numeric', ['field' => $label]) : null,
-            'integer' => filter_var($value, FILTER_VALIDATE_INT) === false ? Translator::t('validation.integer', ['field' => $label]) : null,
+            'integer' => filter_var($value, FILTER_VALIDATE_INT) === false
+                ? Translator::t('validation.integer', ['field' => $label]) : null,
             'min' => mb_strlen(trim((string) $value)) < (int) $param
                 ? Translator::t('validation.min', ['field' => $label, 'min' => (int) $param]) : null,
             'max' => mb_strlen(trim((string) $value)) > (int) $param
@@ -77,8 +78,9 @@ final class Validator
             'between' => $this->between($value, (string) $param, $label),
             'in' => !in_array((string) $value, explode(',', (string) $param), true)
                 ? Translator::t('validation.in', ['field' => $label]) : null,
-            'date' => strtotime((string) $value) === false ? Translator::t('validation.date', ['field' => $label]) : null,
-            'handle' => preg_match('/^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$/', (string) $value) !== 1
+            'date' => strtotime((string) $value) === false
+                ? Translator::t('validation.date', ['field' => $label]) : null,
+            'handle' => !HandleValidator::isFormatValid((string) $value)
                 ? Translator::t('validation.handle') : null,
             'youtube' => $this->youtube((string) $value, $label),
             // An unknown rule would silently turn the field into an unvalidated
@@ -108,9 +110,10 @@ final class Validator
 
     private function youtube(string $value, string $label): ?string
     {
-        $pattern = '~^(https?://)?(www\.)?(youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)[A-Za-z0-9_-]{6,}~i';
-
-        return preg_match($pattern, $value) === 1 ? null : Translator::t('validation.youtube', ['field' => $label]);
+        // Delegate to YouTube::id so a URL this application cannot embed never
+        // passes validation: two slightly different regexes used to disagree on
+        // the length and on the shorts/live forms.
+        return YouTube::id($value) !== null ? null : Translator::t('validation.youtube', ['field' => $label]);
     }
 
     private function label(string $field): string

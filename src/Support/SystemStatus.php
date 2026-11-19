@@ -29,7 +29,7 @@ final class SystemStatus
     {
         $directory = dirname($this->statusFile);
 
-        if (!is_dir($directory) && !@mkdir($directory, 0775, true) && !is_dir($directory)) {
+        if (!SafeFilesystem::makeDirectory($directory)) {
             return false;
         }
 
@@ -44,7 +44,7 @@ final class SystemStatus
             return false;
         }
 
-        return @file_put_contents($this->statusFile, $encoded, LOCK_EX) !== false;
+        return SafeFilesystem::write($this->statusFile, $encoded, LOCK_EX) !== false;
     }
 
     /**
@@ -58,7 +58,7 @@ final class SystemStatus
             return null;
         }
 
-        $contents = @file_get_contents($this->statusFile);
+        $contents = SafeFilesystem::read($this->statusFile);
         if ($contents === false || $contents === '') {
             return null;
         }
@@ -99,7 +99,7 @@ final class SystemStatus
                 continue;
             }
             $files++;
-            $bytes += (int) @filesize($file);
+            $bytes += (int) SafeFilesystem::size($file);
         }
 
         return ['files' => $files, 'bytes' => $bytes];

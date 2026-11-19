@@ -13,7 +13,7 @@ use Polaris\Mail\MailerInterface;
 use Polaris\Repositories\MagicLinkRepository;
 use Polaris\Services\MagicLinkService;
 use Polaris\Support\Database;
-use Polaris\Support\RateLimiter;
+use Polaris\Repositories\RateLimitRepository;
 
 /**
  * Authentication flows that must hold even when an attacker races them.
@@ -178,7 +178,7 @@ final class AuthTest extends TestCase
                 }
             },
             $this->db,
-            new RateLimiter($this->db),
+            new RateLimitRepository($this->db),
             $settings,
         );
     }

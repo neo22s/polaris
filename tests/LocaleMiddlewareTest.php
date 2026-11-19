@@ -230,7 +230,7 @@ final class LocaleMiddlewareTest extends TestCase
             new \Polaris\Auth\NullSubscriberSync(),
             new \Polaris\Auth\NullProfileProvisioner(),
             $db,
-            new \Polaris\Support\RateLimiter($db),
+            new \Polaris\Repositories\RateLimitRepository($db),
             [],
         );
     }
