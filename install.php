@@ -39,8 +39,8 @@ const POLARIS_INSTALLER_VERSION = '0.1.0';
  */
 const POLARIS_RELEASE_URL = 'https://github.com/neo22s/polaris/releases/latest/download/polaris-site.zip';
 
-/* Optional: SHA-256 of the archive. Empty disables the check (not recommended). */
-const POLARIS_RELEASE_SHA256 = '';
+/* SHA-256 of the published archive. A mismatch aborts before extraction. */
+const POLARIS_RELEASE_SHA256 = '7acd6d6f18a07cb673e6b948818d6ee0835738f06ebc7d4a5ce1b4e5f0b397a4';
 
 /* The file that marks a site as installed. */
 const POLARIS_LOCK = 'var/installed';
