@@ -24,7 +24,7 @@ declare(strict_types=1);
  *   paths, backslashes and an unexpected checksum all abort the install.
  */
 
-const POLARIS_INSTALLER_VERSION = '0.2.3';
+const POLARIS_INSTALLER_VERSION = '0.2.4';
 
 /*
  * Set these before uploading.
@@ -40,7 +40,7 @@ const POLARIS_INSTALLER_VERSION = '0.2.3';
 const POLARIS_RELEASE_URL = 'https://github.com/neo22s/polaris/releases/latest/download/polaris-site.zip';
 
 /* SHA-256 of the published archive. A mismatch aborts before extraction. */
-const POLARIS_RELEASE_SHA256 = '17ab3c2d3774323af3e2f60189609736eda0befb0d53be6253f37654941bf7a5';
+const POLARIS_RELEASE_SHA256 = '9f261acae5363a8dd3fca4e40adda1f25823ba5d4ffdf44e49c6981a1c0f930c';
 
 /* The file that marks a site as installed. */
 const POLARIS_LOCK = 'var/installed';
