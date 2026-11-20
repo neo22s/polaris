@@ -71,6 +71,28 @@ The configuration is `phpstan.neon` (and `starter/phpstan.neon` for a site).
 `install.php` is excluded because it runs before the autoloader exists; it is
 still linted by `composer lint`.
 
+## The missing layer: a real site
+
+The kernel suite is green when the kernel is consistent with itself. It is not
+evidence that a site boots it. Two integrations bugs in the 0.2.x line were only
+visible through the real application:
+
+- POST under `/api/` reached CSRF before the key middleware, so a client got an
+  HTML redirect instead of `401 JSON`;
+- the site's MCP controller read `getContents()` from whatever position the
+  stream was in, so a body already consumed looked empty.
+
+ModelPolas ships `composer smoke` for exactly this. It boots `app/bootstrap.php`
+and drives requests through the real middleware stack:
+
+```bash
+cd ../modelpolas
+composer smoke
+```
+
+A kernel change is done when the kernel suite and the site smoke test both pass.
+See `CONTRIBUTING.md`, "Prove it on a real site".
+
 ## Continuous integration
 
 `.github/workflows/tests.yml` runs three jobs on every push and pull request:

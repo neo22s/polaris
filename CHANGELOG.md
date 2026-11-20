@@ -4,6 +4,17 @@ All notable changes to Polaris are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **A real site is part of the gate.** `CONTRIBUTING.md` and
+  `docs/TESTING.md` now require running a site's `composer smoke` against a
+  kernel change. ModelPolas has that script: it boots the app and drives home,
+  404, language redirect, REST 401/200, the MCP handshake and a CSRF form
+  through the real middleware stack. Both bugs fixed in 0.2.3 and this
+  unreleased cycle were found this way.
+
 ## [0.2.3] - 2026-11-20
 
 ### Fixed

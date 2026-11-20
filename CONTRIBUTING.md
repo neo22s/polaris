@@ -29,6 +29,7 @@ composer check   # lint + PHPStan level 6 + PHPUnit
 A change is ready when:
 
 - the kernel suite passes **without an application installed**;
+- a real site passes `composer smoke` against the change (see above);
 - `composer stan` is clean: no baseline, no `@phpstan-ignore`, no cast added
   only to silence an error (`docs/TESTING.md`);
 - new behaviour has a test, and a bug fix has a test that failed first;
@@ -64,6 +65,24 @@ The full version is in [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md).
 - Integration tests for MySQL; they use a dedicated database and a transaction
   per test. Without MySQL they skip with a clear message, and CI requires them.
 - Never call a real SMTP server or a paid API.
+
+## Prove it on a real site
+
+The kernel suite proves the kernel is consistent with itself. It does not prove
+that a site can boot it, resolve every service, or answer an API client. Before
+calling a kernel change done:
+
+1. run `composer check` in the kernel;
+2. run `composer check` and `composer smoke` in at least one real site
+   (ModelPolas is the reference) after pointing its `kernel/` checkout at the
+   change;
+3. if `composer smoke` fails, the kernel change is not ready. Fix it or revert
+   it; do not patch `kernel/` in the site.
+
+`composer smoke` boots the site and drives requests through the real middleware
+stack: home, 404, language redirect, REST 401/JSON with a bad or missing key,
+OpenAPI with a valid key, the MCP handshake, and a CSRF-protected form. It has
+already caught a CSRF-before-API-key ordering bug that the unit suite missed.
 
 ## Commits and releases
 
