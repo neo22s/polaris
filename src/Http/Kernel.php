@@ -62,7 +62,7 @@ use Twig\Environment;
  */
 final class Kernel
 {
-    public const VERSION = '0.2.1';
+    public const VERSION = '0.2.2';
 
     /**
      * @param string $root Site root (the directory holding index.php).

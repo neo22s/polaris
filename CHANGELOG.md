@@ -4,6 +4,20 @@ All notable changes to Polaris are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-11-20
+
+Dependency maintenance. No public API changed.
+
+### Security
+
+- **PHPMailer 6.12.0 → 7.2.0.** Upstream 7.1.0 sanitises `MessageDate`,
+  `XMailer`, `ContentType`, `CharSet`, `username` and `password` before use,
+  7.2.0 folds long address lines correctly and stops a `QUIT` on a closed
+  connection. The 7.0 major only makes `lang()`, `setLanguage()` and
+  `$language` static; the kernel sets `CharSet` and never calls them, so no
+  code change was needed.
+- **`actions/checkout` 4 → 7** in the test workflow.
+
 ## [0.2.1] - 2026-11-20
 
 Tooling release: the standards that were documented are now enforced.
