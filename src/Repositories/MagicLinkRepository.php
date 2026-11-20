@@ -35,6 +35,8 @@ final class MagicLinkRepository
      * row. MySQL reports how many rows changed, so two concurrent requests
      * carrying the same token cannot both succeed: one wins the race, the
      * other sees 0 affected rows and gets null.
+     *
+     * @return array<string,mixed>|null
      */
     public function consume(string $tokenHash): ?array
     {
@@ -68,6 +70,8 @@ final class MagicLinkRepository
      *
      * Kept for callers that only need to inspect a token. Authentication goes
      * through consume(), which is atomic.
+     *
+     * @return array<string,mixed>|null
      */
     public function findValidByHash(string $tokenHash): ?array
     {

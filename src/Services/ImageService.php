@@ -76,7 +76,7 @@ final class ImageService
         $width = imagesx($source);
         $height = imagesy($source);
 
-        if ($width < 1 || $height < 1 || $width * $height > $this->maxPixels) {
+        if ($width * $height > $this->maxPixels) {
             imagedestroy($source);
             throw new InvalidArgumentException('The image dimensions are too large.');
         }
@@ -136,7 +136,7 @@ final class ImageService
         // here, so the warning would only add noise to a validation failure.
         $details = @getimagesize($path);
 
-        if ($details === false || !isset($details['mime']) || !is_string($details['mime'])) {
+        if ($details === false) {
             throw new InvalidArgumentException('The file is not a readable image.');
         }
 
@@ -166,6 +166,9 @@ final class ImageService
             'image/jpeg' => imagejpeg($image, $path, 85),
             'image/png' => imagepng($image, $path, 6),
             'image/webp' => imagewebp($image, $path, 80),
+            // detectMime() only returns the three allowlisted types; the arm
+            // keeps the match total if the allowlist and this list ever drift.
+            default => throw new RuntimeException('Unsupported image type: ' . $mime),
         };
 
         if ($result !== true) {

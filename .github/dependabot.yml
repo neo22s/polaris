@@ -1,0 +1,25 @@
+version: 2
+
+updates:
+  # Runtime dependencies are the security surface: a release ships vendor/.
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      runtime:
+        patterns: ['*']
+
+  - package-ecosystem: composer
+    directory: /starter
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # Actions are pinned by tag; a compromised or deprecated major should show up
+  # as a pull request rather than as a warning months later.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

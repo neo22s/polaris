@@ -19,6 +19,7 @@
         "twig/twig": "^3.30"
     },
     "require-dev": {
+        "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^10.5 || ^11.0"
     },
     "autoload": {
@@ -43,12 +44,14 @@
         "lint": "php bin/lint.php",
         "check": [
             "@lint",
+            "@stan",
             "@test"
         ],
         "package": "php bin/package.php",
         "deploy": "php bin/deploy.php",
         "migrate": "php bin/migrate.php",
         "version": "php bin/version.php",
-        "test:integration": "@php -r \"putenv('POLARIS_REQUIRE_INTEGRATION=1');\" && vendor/bin/phpunit"
+        "test:integration": "@php -r \"putenv('POLARIS_REQUIRE_INTEGRATION=1');\" && vendor/bin/phpunit",
+        "stan": "phpstan analyse --no-progress --no-ansi"
     }
 }

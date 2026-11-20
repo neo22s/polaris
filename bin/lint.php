@@ -10,7 +10,7 @@ declare(strict_types=1);
  */
 
 $root = dirname(__DIR__);
-$directories = ['src', 'bin', 'config', 'database', 'tests'];
+$directories = ['src', 'bin', 'config', 'database', 'resources/stubs', 'tests'];
 $files = [];
 
 foreach ($directories as $directory) {

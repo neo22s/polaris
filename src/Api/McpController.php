@@ -105,6 +105,9 @@ final class McpController
             'ping' => new \stdClass(),
             'tools/list' => ['tools' => $this->registry->definitions()],
             'tools/call' => $this->callTool($params),
+            // handle() filters the method list first; this arm keeps the match
+            // total so a future method added there cannot fall through silently.
+            default => throw new \InvalidArgumentException('Method not found'),
         };
     }
 
@@ -151,6 +154,7 @@ final class McpController
         );
     }
 
+    /** @param array{code:int,message:string}|null $error */
     private function respond(ResponseInterface $response, mixed $id, ?array $error, mixed $result): ResponseInterface
     {
         return JsonResponse::rpc($response, $id, $error, $result);

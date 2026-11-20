@@ -56,6 +56,12 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist
 
+      - name: Validate the manifest
+        run: composer validate --strict --no-check-publish
+
+      - name: Audit runtime dependencies
+        run: composer audit --no-dev
+
       # PHPUnit 11 needs 8.2; constrain the dev tool per PHP version instead of
       # dropping 8.1 from the matrix, because 8.1 is the version a cheap host is
       # most likely to run and the one a starter kit must not break on.
@@ -93,7 +99,11 @@ jobs:
         run: composer install --no-interaction --prefer-dist
         working-directory: starter
 
-      - name: Lint and test
+      - name: Validate the manifest
+        run: composer validate --strict --no-check-publish
+        working-directory: starter
+
+      - name: Lint, analyse and test
         run: composer check
         working-directory: starter
 

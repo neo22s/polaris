@@ -62,16 +62,17 @@ use Twig\Environment;
  */
 final class Kernel
 {
-    public const VERSION = '0.2.0';
+    public const VERSION = '0.2.1';
 
     /**
      * @param string $root Site root (the directory holding index.php).
      * @param array<string,mixed> $definitions Extra PHP-DI definitions from the app.
-     * @param (\Closure(App, ContainerInterface):void)|null $routes Route registrar.
+     * @param (\Closure(App<\Psr\Container\ContainerInterface>, ContainerInterface):void)|null $routes Route registrar.
      * @param (\Closure(Environment, ContainerInterface):void)|null $decorateTwig
      *        Hook for application Twig functions and filters. Runs after the
      *        kernel helpers, so an app can add or replace them.
      * @param string|null $envFile Environment file. Defaults to <root>/.env.
+     * @return App<\Psr\Container\ContainerInterface>
      */
     public static function boot(
         string $root,

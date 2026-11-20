@@ -18,8 +18,12 @@ agent.
   `PascalCase` for classes.
 - 120 columns where practical. Long HTML and translation strings are exempt.
 - No `var_dump`, `print_r`, `die`, `exit` or `eval` in `src/`.
-- `composer check` runs syntax lint plus PHPUnit. Lint does **not** enforce
-  PSR-12 formatting; the conventions above are review rules, not a formatter.
+- `composer check` runs syntax lint, PHPStan level 6 and PHPUnit. Lint does
+  **not** enforce PSR-12 formatting; the conventions above are review rules,
+  not a formatter, and PHPStan catches type and dead-code mistakes rather than
+  layout. See [`TESTING.md`](TESTING.md).
+- A line over 120 columns is split unless it is generated code, a heredoc
+  scaffold, or a translation literal.
 - No superglobals in classes; session state goes through `Polaris\Support\Session`.
 - `random_bytes()` or `hash()` for anything security related. Never `rand`,
   `mt_rand`, `md5` or `sha1`.
@@ -85,6 +89,14 @@ it belongs in a service and the controller calls it.
 - Keys are namespaced (`mail.*`, `validation.*`) and in English.
 - Every key exists in every shipped language file; `KernelPurityTest` compares
   the key sets.
+
+## Static analysis
+
+- PHPStan level 6 on `src/` is part of `composer check`. No baseline, no
+  `@phpstan-ignore`, no cast added only to quiet an error: narrow the type at
+  the source.
+- `array<string,mixed>` on a repository result is a contract, not noise: write
+  the shape down and let the caller rely on it.
 
 ## Tests
 

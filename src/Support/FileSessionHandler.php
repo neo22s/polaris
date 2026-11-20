@@ -120,9 +120,8 @@ final class FileSessionHandler implements SessionHandlerInterface
 
     /**
      * @param int $maxLifetime Provided by PHP from session.gc_maxlifetime.
-     * @return int|false
      */
-    public function gc(int $maxLifetime): int|false
+    public function gc(int $maxLifetime): int
     {
         $lifetime = $maxLifetime > 0 ? $maxLifetime : $this->lifetime;
         $cutoff = time() - $lifetime;

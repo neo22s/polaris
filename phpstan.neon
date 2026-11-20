@@ -1,0 +1,11 @@
+parameters:
+    level: 6
+    paths:
+        - src
+    # The installer runs before the autoloader exists, and the bin scripts are
+    # entry points rather than library code. Both are still linted by PHP.
+    excludePaths:
+        - install.php
+    treatPhpDocTypesAsCertain: false
+    # No baseline and no ignores: the code is typed enough to pass level 6
+    # honestly. If an error appears, fix the code.

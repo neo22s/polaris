@@ -74,6 +74,7 @@ final class AuthController
         ]);
     }
 
+    /** @param array{token:string} $args */
     public function consume(Request $request, Response $response, array $args): Response
     {
         $user = $this->auth->consumeToken((string) $args['token']);

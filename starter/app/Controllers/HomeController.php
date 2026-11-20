@@ -40,6 +40,7 @@ final class HomeController
      * a supported locale, so this only has to render. `/en` redirects to `/`
      * to keep one canonical URL per language.
      */
+    /** @param array{locale:string} $args */
     public function localized(Request $request, Response $response, array $args): Response
     {
         $locale = strtolower((string) ($args['locale'] ?? ''));

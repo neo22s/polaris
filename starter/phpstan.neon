@@ -1,0 +1,11 @@
+parameters:
+    level: 6
+    paths:
+        - app
+        - config
+    treatPhpDocTypesAsCertain: false
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        # Rows are plain arrays by design; the shapes are documented per
+        # repository and asserted by the callers.
+        - '#has no value type specified in iterable type array#'

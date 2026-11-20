@@ -122,6 +122,7 @@ class AuthService
         return $user;
     }
 
+    /** @return array<string,mixed>|null */
     public function requestMagicLink(string $email, ?string $ip, ?string $userAgent): ?array
     {
         $user = $this->users->findByEmail(strtolower(trim($email)));

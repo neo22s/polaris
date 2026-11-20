@@ -24,6 +24,11 @@ If the kernel does something wrong for this site, use an extension point
 `kernel/`.** An upgrade replaces it, so the patch disappears — usually in the
 middle of a deploy.
 
+The site's `composer check` is lint + PHPStan level 6 + PHPUnit; it must pass
+before you finish. Code in `app/` follows the kernel standards too:
+`declare(strict_types=1)`, typed signatures, one test per behaviour, no dead
+branches, no `var_dump`/`die`/superglobals in classes.
+
 ## 3. Stack and versions
 
 - PHP 8.1+ (`declare(strict_types=1)` everywhere)
@@ -74,7 +79,7 @@ with an English key added to every shipped language file.
 ## 9. Tests
 
 ```bash
-composer check   # lint + PHPUnit — the only gate
+composer check   # lint + PHPStan + PHPUnit — the only gate
 ```
 
 - New behaviour → new test

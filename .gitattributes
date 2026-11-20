@@ -1,0 +1,25 @@
+* text=auto eol=lf
+
+# Release archives and binaries must never be normalised or diffed as text.
+*.zip binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+
+# A checkout on any OS must not rewrite these into CRLF: the generated stubs
+# and the installer are compared byte-for-byte and shipped verbatim.
+*.php text eol=lf
+*.twig text eol=lf
+*.sql text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+
+# Keep release and vendor noise out of "language stats" and diffs.
+composer.lock -diff
+dist/* export-ignore
+.github/* export-ignore
+tests/* export-ignore
+phpunit.xml export-ignore

@@ -139,6 +139,7 @@ $result = Packager::build($root, $archive, $version, [
     'TRADEMARK.md',
     '.env.example',
     'phpunit.xml',
+    'phpstan.neon',
 ]);
 
 fwrite(STDOUT, sprintf(

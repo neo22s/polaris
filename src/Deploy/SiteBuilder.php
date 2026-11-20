@@ -33,6 +33,10 @@ final class SiteBuilder
         'resources',
         'database',
         'bin',
+        // The AGENTS contract a packaged site ships points at these files.
+        // Without them the reference an agent is told to read does not exist
+        // on the server.
+        'docs',
         'composer.json',
         'composer.lock',
         'VERSION',
@@ -55,10 +59,14 @@ final class SiteBuilder
         'kernel',
         'resources',
         'uploads',
+        'docs',
+        'phpstan.neon',
         'composer.json',
         'composer.lock',
         'VERSION',
         'AGENTS.md',
+        'README.md',
+        'CONTRIBUTING.md',
     ];
 
     /**

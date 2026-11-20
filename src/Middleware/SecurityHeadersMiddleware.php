@@ -15,7 +15,10 @@ use Psr\Http\Server\RequestHandlerInterface;
  */
 final class SecurityHeadersMiddleware implements MiddlewareInterface
 {
-    /** @param array<int,string> $trustedProxies */
+    /**
+     * @param array<int,string> $csp Extra directives appended after `default-src`.
+     * @param array<int,string> $trustedProxies Peers allowed to set X-Forwarded-Proto.
+     */
     public function __construct(
         private array $csp = [],
         private array $trustedProxies = [],

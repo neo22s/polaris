@@ -10,7 +10,17 @@ declare(strict_types=1);
  */
 
 $root = dirname(__DIR__);
-$directories = ['app', 'bin', 'config', 'database', 'tests', 'kernel/src', 'kernel/config', 'kernel/bin'];
+$directories = [
+    'app',
+    'bin',
+    'config',
+    'database',
+    'tests',
+    'kernel/src',
+    'kernel/config',
+    'kernel/bin',
+    'kernel/resources/stubs',
+];
 $files = [];
 
 foreach ($directories as $directory) {

@@ -45,7 +45,7 @@ final class Translator
      *        from highest to lowest priority. An application passes its own
      *        directory first and the kernel directory last, so a site can
      *        translate or reword a kernel string without editing the kernel.
-     * @param (\\Closure(string):array<string,string>)|null $overrides
+     * @param (\Closure(string):array<string,string>)|null $overrides
      *        Optional loader returning admin overrides for a locale (merged on
      *        top of the language files).
      * @param array<int,string> $supported Locale codes the site ships. Defaults

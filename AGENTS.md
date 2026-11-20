@@ -28,6 +28,11 @@ If a kernel behaviour is wrong for this site, you **do not patch the kernel**.
 Use a documented extension point (`docs/ARCHITECTURE.md`, "Extension points") or
 open an issue against the kernel.
 
+The kernel itself follows `CONTRIBUTING.md`, `docs/CONVENTIONS.md` and
+`docs/TESTING.md`: typed code, one test per behaviour, PHPStan level 6 and no
+dead branches. Applied to this site, that means the same discipline in `app/`,
+and `composer check` (lint + PHPStan + PHPUnit) before you call it done.
+
 ## 3. Stack
 
 - PHP 8.1+ (`declare(strict_types=1)` everywhere), PSR-12
@@ -79,7 +84,7 @@ with keys in English, added to every shipped language file.
 ## 9. Tests
 
 ```bash
-composer check   # lint + PHPUnit — the only gate
+composer check   # lint + PHPStan + PHPUnit — the only gate
 ```
 
 - New behaviour → new test

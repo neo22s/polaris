@@ -65,7 +65,7 @@ final class Env
     {
         $value = self::$values[$key] ?? $_ENV[$key] ?? getenv($key);
 
-        if ($value === false || $value === null || $value === '') {
+        if ($value === false || $value === '') {
             return $default;
         }
 

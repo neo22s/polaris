@@ -4,6 +4,34 @@ All notable changes to Polaris are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-11-20
+
+Tooling release: the standards that were documented are now enforced.
+
+### Added
+
+- **PHPStan level 6 is part of the gate.** `composer stan` analyses `src/` with
+  no baseline and no ignores; `composer check` now runs lint → PHPStan → PHPUnit.
+  The site's `starter/composer.json` gets the same three-step gate over `app/`
+  and `config/`.
+- **`docs/TESTING.md`** documents the gate, the test layout, the rules a test
+  must not weaken, and the CI jobs.
+- **Editor and repository hygiene:** `.editorconfig`, `.gitattributes`
+  (LF for PHP, binary for archives, `export-ignore` for CI and tests),
+  Dependabot for Composer and Actions, a pull-request template and issue
+  templates that route security reports to `SECURITY.md`.
+- **CI validates and audits the manifest** (`composer validate --strict`,
+  `composer audit --no-dev`) before building, and the packaged site now ships
+  `kernel/docs/` so the `AGENTS.md` it includes points at files that exist.
+
+### Fixed
+
+- **Real bugs PHPStan level 6 exposed:** a dead `if` in
+  `Database::transaction()`, an unreachable branch in `ImageService` and an
+  undefined `$http_response_header` dependency in `AcumbamailService`.
+- **The starter admin panel injected a `Cache` it never used**, and two starter
+  controller actions had untyped `$args`.
+
 ## [0.2.0] - 2026-11-19
 
 Audit pass: the kernel keeps its shape, and every claim in the README now has

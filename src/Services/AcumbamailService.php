@@ -198,6 +198,10 @@ final class AcumbamailService
             return ['ok' => false, 'body' => ''];
         }
 
+        // The HTTP wrapper fills this local variable; it is not visible from
+        // statusIsSuccessful(), which is why the headers are passed explicitly.
+        $headers = $http_response_header;
+
         if ($raw === false) {
             error_log(sprintf('[Polaris] Acumbamail %s request failed', $method));
 
@@ -205,19 +209,21 @@ final class AcumbamailService
         }
 
         return [
-            'ok' => $this->statusIsSuccessful(),
+            'ok' => $this->statusIsSuccessful($headers),
             'body' => $raw,
         ];
     }
 
     /**
-     * Whether the last request answered with a success status.
+     * Whether the response headers carry a 2xx status.
+     *
+     * @param array<int,string> $headers Raw response headers from the wrapper.
      */
-    private function statusIsSuccessful(): bool
+    private function statusIsSuccessful(array $headers): bool
     {
         $status = 0;
 
-        foreach ($http_response_header ?? [] as $header) {
+        foreach ($headers as $header) {
             if (preg_match('~^HTTP/\S+\s+(\d{3})~', $header, $matches) === 1) {
                 $status = (int) $matches[1];
             }

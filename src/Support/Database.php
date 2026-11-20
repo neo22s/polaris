@@ -120,11 +120,23 @@ final class Database
 
             return $result;
         } catch (\Throwable $e) {
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
-            }
+            $this->rollbackIfActive($pdo);
 
             throw $e;
+        }
+    }
+
+    /**
+     * A callback may have committed or rolled back the transaction itself, so
+     * a failure path has to tolerate a rollback that is no longer possible.
+     */
+    private function rollbackIfActive(\PDO $pdo): void
+    {
+        try {
+            $pdo->rollBack();
+        } catch (\PDOException) {
+            // Already finished by the callback; the exception below is the one
+            // that matters and is rethrown by the caller.
         }
     }
 

@@ -23,12 +23,14 @@ and no product brand inside `src/`.
 ## Before opening a pull request
 
 ```bash
-composer check
+composer check   # lint + PHPStan level 6 + PHPUnit
 ```
 
 A change is ready when:
 
 - the kernel suite passes **without an application installed**;
+- `composer stan` is clean: no baseline, no `@phpstan-ignore`, no cast added
+  only to silence an error (`docs/TESTING.md`);
 - new behaviour has a test, and a bug fix has a test that failed first;
 - public classes and methods have short PHPDoc explaining the contract;
 - user-facing strings are in `resources/lang` (English and at least one
@@ -67,6 +69,12 @@ The full version is in [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md).
 
 - Short, imperative, English: `Add rate limiting to magic link requests`.
 - One behaviour per commit. No reformatting of unrelated lines.
-- Versioning is SemVer, changed with `php bin/version.php` so `VERSION` and
-  `Kernel::VERSION` never disagree.
+- Versioning is SemVer, changed with `php bin/version.php` so `VERSION`,
+  `Kernel::VERSION` and the installer constant never disagree.
+- `CHANGELOG.md` gets an entry under `[Unreleased]`; the release commit moves
+  it to the new version.
+- The release is built with `php bin/package.php --site=starter --out=dist`,
+  its SHA-256 is written into `POLARIS_RELEASE_SHA256` in `install.php`, and
+  the same archive is uploaded as the `polaris-site.zip` asset. `composer check`
+  verifies the pin when `dist/` exists.
 - Never force-push, rewrite history, or commit generated/runtime data.

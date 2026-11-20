@@ -17,7 +17,7 @@ no Composer on the server.
 
 ```bash
 composer install
-composer check        # lint + tests
+composer check        # lint + PHPStan + tests
 ```
 
 ## Build something

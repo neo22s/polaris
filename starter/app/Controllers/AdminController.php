@@ -8,7 +8,6 @@ use Polaris\Auth\AuthService;
 use Polaris\Http\Kernel;
 use Polaris\Repositories\MagicLinkRepository;
 use Polaris\Repositories\TranslationRepository;
-use Polaris\Support\Cache;
 use Polaris\Support\Config;
 use Polaris\Support\SystemStatus;
 use Polaris\Support\Translator;
@@ -29,7 +28,6 @@ final class AdminController
     public function __construct(
         private View $view,
         private AuthService $auth,
-        private Cache $cache,
         private SystemStatus $system,
         private MagicLinkRepository $magicLinks,
         private TranslationRepository $translations,

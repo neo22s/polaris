@@ -21,8 +21,7 @@ use RuntimeException;
  */
 final class FtpUploader
 {
-    /** @var resource|\FTP\Connection|null */
-    private $connection = null;
+    private ?\FTP\Connection $connection = null;
 
     private string $remoteRoot = '';
 
@@ -178,8 +177,7 @@ final class FtpUploader
         return ['ok' => $ok, 'message' => $message];
     }
 
-    /** @return resource|\FTP\Connection */
-    private function connection()
+    private function connection(): \FTP\Connection
     {
         if ($this->connection === null) {
             $this->connect();
@@ -197,7 +195,7 @@ final class FtpUploader
      * identified by its own files, so a neighbouring site is never mistaken
      * for ours.
      *
-     * @param resource|\FTP\Connection $connection
+     * @param \FTP\Connection $connection
      */
     private function resolveRoot($connection, string $configured): string
     {
@@ -245,17 +243,13 @@ final class FtpUploader
     /**
      * Look for our own install under /domains.
      *
-     * @param resource|\FTP\Connection $connection
+     * @param \FTP\Connection $connection
      */
     private function findInstall($connection): ?string
     {
         $matches = [];
 
         foreach (ftp_nlist($connection, '/domains') ?: [] as $domain) {
-            if (!is_string($domain)) {
-                continue;
-            }
-
             $base = basename($domain);
 
             if ($base === '' || $base === '.' || $base === '..') {

@@ -110,8 +110,8 @@ final class SystemStatus
      */
     public function cronCommand(string $scriptPath): string
     {
-        $binary = PHP_BINARY !== '' ? PHP_BINARY : 'php';
-
-        return $binary . ' ' . $scriptPath;
+        // PHP_BINARY is the interpreter that is running this script, which is
+        // exactly the one the scheduler should use.
+        return PHP_BINARY . ' ' . $scriptPath;
     }
 }

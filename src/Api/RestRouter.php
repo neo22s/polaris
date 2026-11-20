@@ -26,7 +26,7 @@ use Throwable;
 final class RestRouter
 {
     /**
-     * @param App $app The Slim application.
+     * @param App<\Psr\Container\ContainerInterface> $app The Slim application.
      * @param Registry $registry Operations to expose.
      * @param string $prefix Route prefix, `/api/v1` by default.
      * @param array<int,string> $middleware PSR-15 middleware class names, applied per route.

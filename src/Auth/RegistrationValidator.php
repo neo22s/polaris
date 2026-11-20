@@ -42,7 +42,9 @@ final class RegistrationValidator
             return ['error' => Translator::t('validation.email_exists'), 'field' => 'email'];
         }
 
-        if (($error = HandleValidator::check($handle, fn (string $candidate): bool => $this->handleExists($candidate))) !== null) {
+        $isTaken = fn (string $candidate): bool => $this->handleExists($candidate);
+
+        if (($error = HandleValidator::check($handle, $isTaken)) !== null) {
             return ['error' => $error, 'field' => 'handle'];
         }
 

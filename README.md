@@ -184,6 +184,7 @@ will not be declared until a second real site runs on the kernel.
 | [`AGENTS.md`](AGENTS.md) | The contract for an AI agent working in a site |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Layers, request lifecycle, extension points |
 | [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) | Coding standards and the kernel/app boundary |
+| [`docs/TESTING.md`](docs/TESTING.md) | Lint, PHPStan level 6, PHPUnit and the CI gate |
 | [`docs/API.md`](docs/API.md) | One operation → REST + MCP + docs |
 | [`docs/INSTALL.md`](docs/INSTALL.md) | The one-file installer, end to end |
 | [`docs/DEPLOY.md`](docs/DEPLOY.md) | Releases and incremental FTP deployment |
@@ -213,7 +214,8 @@ kernel (this repository)
 
 ```bash
 composer test     # PHPUnit
-composer check    # PHP syntax lint + PHPUnit
+composer stan     # PHPStan level 6 over src/
+composer check    # syntax lint + PHPStan + PHPUnit — the only gate
 ```
 
 183 tests run with no services at all. 8 need MySQL (the migration runner, the
@@ -228,8 +230,9 @@ TEST_DB_DATABASE=polaris_test composer test:integration
 ```
 
 Guards that fail loudly: kernel purity (no `App\` references), version drift,
-mail MIME correctness, API/REST payload parity, and the contents of a release
-archive.
+mail MIME correctness, API/REST payload parity, the installer checksum when a
+release is present, and the contents of a release archive. `docs/TESTING.md`
+explains the gate and how to write a test that does not leak state.
 
 ## Security
 
