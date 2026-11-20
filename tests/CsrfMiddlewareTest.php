@@ -71,6 +71,23 @@ final class CsrfMiddlewareTest extends TestCase
         $this->assertTrue($this->passes($settings, $request));
     }
 
+    public function testApiPathsReachTheirKeyMiddlewareInsteadOfCsrf(): void
+    {
+        $request = (new ServerRequestFactory())->createServerRequest('POST', '/api/v1/users');
+
+        $this->assertTrue(
+            $this->passes(['api' => [], 'mcp' => []], $request),
+            'An API route must answer 401 JSON, not a CSRF redirect, when the key is missing.',
+        );
+    }
+
+    public function testANonApiPathWithoutAKeyIsStillProtected(): void
+    {
+        $request = (new ServerRequestFactory())->createServerRequest('POST', '/account/delete');
+
+        $this->assertFalse($this->passes(['api' => [], 'mcp' => []], $request));
+    }
+
     public function testAValidCsrfTokenStillPassesWithoutAKey(): void
     {
         $_SESSION['_csrf_token'] = 'the-token';

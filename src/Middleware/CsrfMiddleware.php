@@ -34,11 +34,17 @@ final class CsrfMiddleware implements MiddlewareInterface
         // there is nothing for CSRF to protect: the attack CSRF defends against
         // is the browser attaching the session automatically.
         //
-        // This is a header check, not a path check, on purpose: a new API route
-        // is exempt the moment it uses the key, without anyone remembering to
-        // add its prefix here. The value must still be *valid*, though: a proxy
-        // that injects an arbitrary header must not switch CSRF off globally.
-        if ($this->hasValidApiKey($request)) {
+        // Two cases are exempt:
+        //
+        // 1. A valid key in the header, on any route. A proxy that injects an
+        //    arbitrary header must not switch CSRF off, so the value has to
+        //    match the configured key.
+        // 2. A path under the API prefix. Those routes authenticate per route
+        //    with an API key, and the middleware that rejects a missing or
+        //    invalid key has to produce the 401 JSON envelope. Running CSRF
+        //    first would turn "wrong key" into an HTML redirect, which is not
+        //    something an API client can act on.
+        if ($this->hasValidApiKey($request) || $this->isApiPath($request)) {
             return $handler->handle($request);
         }
 
@@ -66,6 +72,18 @@ final class CsrfMiddleware implements MiddlewareInterface
         }
 
         return $handler->handle($request);
+    }
+
+    /**
+     * API routes authenticate with a header and answer with JSON, including
+     * when the key is wrong. CSRF never applies to them: there is no cookie to
+     * protect, and the key middleware is the one that must answer.
+     */
+    private function isApiPath(ServerRequestInterface $request): bool
+    {
+        $path = strtolower($request->getUri()->getPath());
+
+        return $path === '/api' || str_starts_with($path, '/api/');
     }
 
     /**

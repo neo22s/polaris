@@ -76,7 +76,9 @@ it belongs in a service and the controller calls it.
 
 ## Security
 
-- All state-changing requests pass CSRF.
+- All state-changing requests pass CSRF. The only exceptions are routes under
+  `/api/`, which must mount an API-key middleware, and requests carrying a
+  valid key header. Never mount an unauthenticated form under `/api/`.
 - Authenticated routes use `AuthMiddleware`; admin routes add `AdminMiddleware`.
 - Validate at the boundary with `Validator`, then assert types in the service.
 - Redirects built from request data go through `Url::safePath()`.

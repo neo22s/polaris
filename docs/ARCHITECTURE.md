@@ -166,8 +166,11 @@ dev packages), a `MANIFEST.json` with a SHA-256 per file, and a `VERSION` file.
 
 1. `kernel/` never imports `App\`.
 2. Every query uses bound parameters.
-3. Every state-changing route passes through CSRF, unless it authenticates with
-   a **valid** API key header (which a browser cannot send cross-origin).
+3. Every state-changing route passes through CSRF, unless it lives under
+   `/api/` (those routes must mount an API-key middleware) or carries a
+   **valid** API key header (which a browser cannot send cross-origin). API
+   routes are exempt by path so a missing or wrong key reaches the key
+   middleware and answers 401 JSON instead of an HTML redirect.
 4. Uploaded files never execute: `uploads/.htaccess` ships with every release
    and `ImageService` re-encodes images before storing them.
 5. Every user-facing string goes through `Translator`.
